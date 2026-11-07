@@ -1,14 +1,225 @@
-import Slot from "./Slot";
+import {useEffect, useRef, useState, type FormEvent} from "react";
+import { useDispatch, useSelector } from "react-redux";
+import type { RootState } from "../../store/Store";
+import {addMessage, setCurrentChat, setLoading, setMessages} from "../../store/slice/ChatSlice";
+import { chatService } from "../../services/chatService";
+import { websocketService } from "../../services/websocket";
 
 function ChatPanel() {
+    const dispatch = useDispatch();
+    const username = useSelector((state: RootState) => state.auth.username);
+    const messages = useSelector((state: RootState) => state.chat.messages);
+    const currentChat = useSelector((state: RootState) => state.chat.currentChat);
+    const loading = useSelector((state: RootState) => state.chat.loading);
+
+    const [receiver, setReceiver] = useState("");
+    const [messageInput, setMessageInput] = useState("");
+    const [checking, setChecking] = useState(false);
+    const [sending, setSending] = useState(false);
+    const [error, setError] = useState("");
+    const [success, setSuccess] = useState("");
+
+    const messagesEndRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        messagesEndRef.current?.scrollIntoView({
+            behavior: "smooth"
+        });
+    }, [messages]);
+
+    useEffect(() => {
+        if (!username || !currentChat) return;
+
+        const unsubscribe = chatService.subscribeMessages((message) => {
+            const isReceivedMessage =
+                message.sender === currentChat &&
+                message.receiver === username;
+
+            if (isReceivedMessage) {
+                dispatch(addMessage(message));
+            }
+        });
+
+        return unsubscribe;
+    }, [username, currentChat, dispatch]);
+
+    const handleSelectReceiver = async (
+        event: FormEvent<HTMLFormElement>
+    ) => {
+        event.preventDefault();
+
+        const target = receiver.trim();
+
+        if (!target) {
+            setError("Vui lòng nhập username người nhận.");
+            return;
+        }
+
+        if (target === username) {
+            setError("Bạn không thể tự chat với chính mình.");
+            return;
+        }
+
+        if (!websocketService.isConnected()) {
+            setError("WebSocket chưa kết nối. Vui lòng đăng nhập lại.");
+            return;
+        }
+
+        setChecking(true);
+        setError("");
+        setSuccess("");
+
+        try {
+            const exists = await chatService.checkUserExist(target);
+
+            if (!exists) {
+                setError("Tài khoản không tồn tại.");
+                return;
+            }
+
+            dispatch(setCurrentChat(target));
+            dispatch(setLoading(true));
+
+            const history =
+                await chatService.getPeopleChatMessages(target, 1);
+
+            dispatch(setMessages(history));
+
+            setSuccess(`Đã mở cuộc trò chuyện với ${target}.`);
+
+        } catch (err) {
+            setError(
+                err instanceof Error
+                    ? err.message
+                    : "Không thể mở cuộc trò chuyện."
+            );
+        } finally {
+            dispatch(setLoading(false));
+            setChecking(false);
+        }
+    };
+
+    const handleSendMessage = (
+        event: FormEvent<HTMLFormElement>
+    ) => {
+        event.preventDefault();
+
+        const content = messageInput.trim();
+
+        if (!currentChat) {
+            setError("Vui lòng chọn người nhận trước.");
+            return;
+        }
+
+        if (!content) return;
+
+        if (!username) {
+            setError("Không xác định được tài khoản người gửi.");
+            return;
+        }
+
+        if (!websocketService.isConnected()) {
+            setError("WebSocket đã mất kết nối.");
+            return;
+        }
+
+        if (sending) return;
+
+        try {
+            setSending(true);
+            setError("");
+            setSuccess("");
+
+            chatService.sendPeopleMessage(currentChat, content);
+
+            dispatch(
+                addMessage({
+                    id: `local-${Date.now()}`,
+                    sender: username,
+                    receiver: currentChat,
+                    content: content,
+                    time: new Date().toLocaleTimeString("vi-VN", {
+                        hour: "2-digit",
+                        minute: "2-digit"
+                    }),
+                    type: 0
+                })
+            );
+
+            setMessageInput("");
+
+        } catch (err) {
+            setError(
+                err instanceof Error
+                    ? err.message
+                    : "Không thể gửi tin nhắn."
+            );
+        } finally {
+            setSending(false);
+        }
+    };
+
     return (
         <main className="chat-main">
-            <Slot className="cp-header" label="Header đoạn chat" hint="Chứa tên nhóm và các chức năng giống như zalo"/>
-            <Slot className="cp-messages" label="Khu vực tin nhắn"/>
-            <Slot className="cp-toolbar" label="Thanh công cụ(nếu có)"/>
-            <Slot className="cp-input" label="Khu nhập tin nhắn"/>
+            <header className="chat-header">
+                <h3>{currentChat || "Chat cá nhân"}</h3>
+            </header>
+
+            {!currentChat && (
+                <form className="receiver-form" onSubmit={handleSelectReceiver}>
+                    <input
+                        value={receiver}
+                        onChange={(e) => setReceiver(e.target.value)}
+                        placeholder="Nhập username..."
+                    />
+                    <button type="submit">Tìm người dùng</button>
+                </form>
+            )}
+
+            {error && <div className="chat-alert chat-alert-error">{error}</div>}
+
+            <section className="chat-messages">
+                {!currentChat ? (
+                    <p>Chưa chọn người chat.</p>
+                ) : loading ? (
+                    <p>Đang tải tin nhắn...</p>
+                ) : (
+                    messages.map((message, index) => (
+                        <div
+                            key={message.id ?? index}
+                            className={`message-row ${
+                                message.sender === username
+                                    ? "message-mine"
+                                    : "message-theirs"
+                            }`}
+                        >
+                            <div className="message-bubble">
+                                <div className="message-content">
+                                    {message.content}
+                                </div>
+                                {message.time && (
+                                    <div className="message-time">{message.time}</div>
+                                )}
+                            </div>
+                        </div>
+                    ))
+                )}
+                <div ref={messagesEndRef} />
+            </section>
+
+            {currentChat && (
+                <form className="message-input-form" onSubmit={handleSendMessage}>
+                    <input
+                        value={messageInput}
+                        onChange={(e) => setMessageInput(e.target.value)}
+                        placeholder="Nhập tin nhắn..."
+                    />
+                    <button type="submit" disabled={!messageInput.trim()}>
+                        Gửi
+                    </button>
+                </form>
+            )}
         </main>
     );
 }
-
 export default ChatPanel;
