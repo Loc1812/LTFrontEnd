@@ -35,7 +35,7 @@
 }
 
 .chat-sidebar {
-  width: 344px;
+  width: 400px;
   flex: none;
   display: flex;
   flex-direction: column;
@@ -44,8 +44,8 @@
   box-sizing: border-box;
   border-right: 1px solid #e5e7eb;
 }
-.sb-search { height: 48px; flex: none; }
-.sb-tabs   { height: 40px; flex: none; }
+.sb-search { flex: none; }
+.sb-tabs   { flex: none; }
 .sb-list {
   flex: 1;
   min-height: 0;
