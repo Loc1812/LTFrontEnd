@@ -15,6 +15,15 @@ export interface RegisterPayload {
     pass: string;
 }
 
+export interface ReLoginPayload {
+    user: string;
+    code: string;
+}
+
+export interface LoginResponseData {
+    RE_LOGIN_CODE: string;
+}
+
 export type ConnectionStatus =
     | "CONNECTING"
     | "CONNECTED"

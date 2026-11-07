@@ -1,6 +1,7 @@
 import {createBrowserRouter, Navigate} from "react-router-dom";
 import Login from "../pages/Login";
 import Chat from "../pages/Chat";
+import Error from "./Error.tsx";
 import { useSelector } from "react-redux";
 import type { RootState } from "../store/Store";
 function ProtectedRoute() {
@@ -25,5 +26,9 @@ export const router = createBrowserRouter([
     {
         path: "/chat",
         element: <ProtectedRoute />
+    },
+    {
+        path: "*",
+        element: <Error />
     }
 ]);
