@@ -24,6 +24,7 @@ function Chat() {
         } catch (error) {
             setError(error instanceof Error ? error.message : "Không thể gửi yêu cầu Logout.");
         } finally {
+            authService.clearSession();
             websocketService.close();
             dispatch(logout());
             navigate("/login", { replace: true });

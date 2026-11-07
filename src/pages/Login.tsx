@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import type { SyntheticEvent } from "react";
 import { useDispatch } from "react-redux";
@@ -27,6 +26,7 @@ function Login() {
         try {
             if (mode === "login") {
                 const reLoginCode = await authService.login(username, password);
+                authService.saveSession(username, reLoginCode);
                 dispatch(loginSuccess({username, reLoginCode}));
                 navigate("/chat");
             } else {
