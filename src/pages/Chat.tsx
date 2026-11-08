@@ -5,6 +5,10 @@ import { authService } from "../services/authService.ts";
 import { websocketService } from "../services/websocket";
 import { logout } from "../store/slice/AuthSlice";
 import type { RootState } from "../store/Store";
+import ConversationSidebar from "../component/chat/ConversationSidebar";
+import ChatPanel from "../component/chat/ChatPanel";
+import "./chat.css";
+
 function Chat() {
     const dispatch = useDispatch();
     const navigate = useNavigate();
@@ -32,17 +36,14 @@ function Chat() {
         }
     };
     return (
-        <div className="container mt-4">
-            <h2>App Chat</h2>
-            <p>Xin chào, {username}</p>
-            {error && (
-                <div className="alert alert-warning">
-                    {error}
-                </div>
-            )}
-            <button className="btn btn-danger" onClick={handleLogout} disabled={loading}>
-                {loading ? "Đang đăng xuất..." : "Logout"}
-            </button>
+        <div className="chat-layout">
+            <ConversationSidebar
+                username={username}
+                loading={loading}
+                error={error}
+                onLogout={handleLogout}
+            />
+            <ChatPanel />
         </div>
     );
 }
