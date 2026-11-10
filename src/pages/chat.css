@@ -54,7 +54,21 @@
   flex-direction: column;
   gap: 8px;
 }
-.sb-item { height: 72px; flex: none; }
+.sb-conv {
+  flex: none;
+  font: inherit;
+  color: inherit;
+  background: #fff;
+  cursor: pointer;
+}
+.sb-conv:hover { background: #eef4ff; }
+.sb-avatar {
+  width: 44px;
+  height: 44px;
+  flex: none;
+}
+.sb-avatar--people { background: #e7f1ff; color: #0d6efd; }
+.sb-avatar--room   { background: #e3f5ea; color: #198754; }
 .sb-footer {
   flex: none;
   padding-top: 8px;

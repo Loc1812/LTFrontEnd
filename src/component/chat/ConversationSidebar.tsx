@@ -1,5 +1,15 @@
-import { useState, type ChangeEvent } from "react";
-import Slot from "./Slot";
+import {useState, type ChangeEvent} from "react";
+import ConversationItem, {type Conversation} from "./ConversationItem";
+
+const MOCK_CONVERSATIONS: Conversation[] = [
+    // Du lieu để Test giao dien
+    {id: "1", name: "tranthib", type: "people", lastMessageAt: "2026-11-18T21:35:00"},
+    {id: "2", name: "Phòng Datamining", type: "room", lastMessageAt: "2026-11-18T09:12:00"},
+    {id: "3", name: "lethic", type: "people", lastMessageAt: "2026-11-17T20:48:00"},
+    {id: "4", name: "Lớp CNTT K23", type: "room", lastMessageAt: "2026-11-16T14:03:00"},
+    {id: "5", name: "phamvand", type: "people", lastMessageAt: "2026-11-12T08:30:00"},
+    {id: "6", name: "Phòng đồ án Web", type: "room", lastMessageAt: "2026-11-05T19:20:00"},
+];
 
 interface Props {
     username: string | null;
@@ -11,10 +21,8 @@ interface Props {
 function ConversationSidebar({username, loading, error, onLogout}: Props) {
     const [keyword, setKeyword] = useState("");
     const [groupMode, setGroupMode] = useState(false);
-
     return (
         <aside className="chat-sidebar">
-            {/* Tìm kiếm: kéo rộng hết cỡ 2 bên */}
             <div className="sb-search">
                 <div className="input-group input-group-sm">
                     <span className="input-group-text bg-light border-end-0">
@@ -31,7 +39,6 @@ function ConversationSidebar({username, loading, error, onLogout}: Props) {
                 </div>
             </div>
 
-            {/* Hàng dưới: checkbox "Phòng" ngoài cùng bên trái; "+ Tạo phòng" và nút đi tiếp ở bên phải */}
             <div className="sb-tabs d-flex align-items-center gap-2">
                 <div className="form-check mb-0 ms-2 me-auto text-nowrap">
                     <input
@@ -41,9 +48,7 @@ function ConversationSidebar({username, loading, error, onLogout}: Props) {
                         checked={groupMode}
                         onChange={(event: ChangeEvent<HTMLInputElement>) => setGroupMode(event.target.checked)}
                     />
-                    <label className="form-check-label" htmlFor="sb-group-mode">
-                        Phòng
-                    </label>
+                    <label className="form-check-label" htmlFor="sb-group-mode">Phòng</label>
                 </div>
                 <button type="button" className="btn btn-sm btn-outline-secondary">
                     <i className="fa-solid fa-plus me-1" aria-hidden="true"></i>
@@ -52,21 +57,15 @@ function ConversationSidebar({username, loading, error, onLogout}: Props) {
                 <button
                     type="button"
                     className="btn btn-sm btn-primary"
-                    title="Tiếp tục"
-                    aria-label="Tiếp tục"
-                    disabled={keyword.trim() === ""}
-                >
+                    disabled={keyword.trim() === ""}>
                     <i className="fa-solid fa-arrow-right" aria-hidden="true"></i>
                 </button>
             </div>
 
-            {/* Khung bao quanh danh sách để nhìn tách biệt nhẹ với phần trên và dưới */}
             <div className="sb-list border bg-light rounded-3 p-2">
-                {["Người / phòng 1", "Người / phòng 2", "Người / phòng 3", "Người / phòng 4", "Người / phòng 5", "Người / phòng 6"].map(
-                    (name) => (
-                        <Slot key={name} className="sb-item" label={name}/>
-                    )
-                )}
+                {MOCK_CONVERSATIONS.map((conversation) => (
+                    <ConversationItem key={conversation.id} conversation={conversation}/>
+                ))}
             </div>
 
             <div className="sb-footer">
