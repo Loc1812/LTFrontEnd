@@ -9,7 +9,7 @@ function Error() {
             <h1 style={{ fontSize: "80px", color: "#dc3545" }}>
                 ERROR
             </h1>
-            <h2>Oops! Đã xảy ra lỗi</h2>
+            <h2 style={{color: "black"}}>Oops! Đã xảy ra lỗi</h2>
             <p>
                 Đường dẫn không hợp lệ hoặc trang bạn đang tìm kiếm không tồn tại.
             </p>
