@@ -18,6 +18,7 @@ function ChatPanel() {
     const [sending, setSending] = useState(false);
     const [error, setError] = useState("");
     const [success, setSuccess] = useState("");
+    const [isOnline, setIsOnline] = useState<boolean | null>(null);
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -76,6 +77,13 @@ function ChatPanel() {
                 setError("Tài khoản không tồn tại.");
                 return;
             }
+            let onlineStatus: boolean | null = null;
+            try {
+                onlineStatus = await chatService.checkUserOnline(target);
+            } catch {
+                onlineStatus = null;
+            }
+            setIsOnline(onlineStatus);
 
             dispatch(setCurrentChat(target));
             dispatch(setLoading(true));
@@ -159,10 +167,39 @@ function ChatPanel() {
         }
     };
 
+    const handleCheckOnline = async () => {
+        if (!currentChat) return;
+
+        try {
+            const status = await chatService.checkUserOnline(currentChat);
+            setIsOnline(status);
+        } catch (err) {
+            setIsOnline(null);
+            setError("Không thể kiểm tra trạng thái online.");
+        }
+    };
+
     return (
         <main className="chat-main">
             <header className="chat-header">
-                <h3>{currentChat || "Chat cá nhân"}</h3>
+                <div>
+                    <h3>{currentChat || "Chat cá nhân"}</h3>
+                    {currentChat && (
+                        <span>
+                                {isOnline === true
+                                    ? "Đang online"
+                                    : isOnline === false
+                                        ? "Đang offline"
+                                        : "Chưa xác định"}
+                            </span>
+                    )}
+                </div>
+
+                {currentChat && (
+                    <button onClick={handleCheckOnline}>
+                        Kiểm tra online
+                    </button>
+                )}
             </header>
 
             {!currentChat && (
