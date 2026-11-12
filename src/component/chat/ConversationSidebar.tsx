@@ -1,5 +1,6 @@
 import {useState, type ChangeEvent} from "react";
 import ConversationItem, {type Conversation} from "./ConversationItem";
+import CreateRoomModal from "./CreateRoom";
 
 const MOCK_CONVERSATIONS: Conversation[] = [
     // Du lieu để Test giao dien
@@ -21,6 +22,20 @@ interface Props {
 function ConversationSidebar({username, loading, error, onLogout}: Props) {
     const [keyword, setKeyword] = useState("");
     const [groupMode, setGroupMode] = useState(false);
+    const [conversations, setConversations] = useState<Conversation[]>(MOCK_CONVERSATIONS);
+    const [showCreateRoom, setShowCreateRoom] = useState(false);
+
+    const handleRoomCreated = (roomName: string) => {
+        setConversations((previous) => [
+            {
+                id: `room-${roomName}`,
+                name: roomName,
+                type: "room",
+                lastMessageAt: new Date().toISOString()
+            }, ...previous,]);
+        setShowCreateRoom(false);
+    };
+
     return (
         <aside className="chat-sidebar">
             <div className="sb-search">
@@ -28,44 +43,32 @@ function ConversationSidebar({username, loading, error, onLogout}: Props) {
                     <span className="input-group-text bg-light border-end-0">
                         <i className="fa-solid fa-magnifying-glass text-secondary" aria-hidden="true"></i>
                     </span>
-                    <input
-                        type="text"
-                        className="form-control bg-light border-start-0"
-                        placeholder={groupMode ? "Tìm phòng" : "Tìm kiếm"}
-                        aria-label={groupMode ? "Tìm phòng" : "Tìm kiếm"}
-                        value={keyword}
-                        onChange={(event: ChangeEvent<HTMLInputElement>) => setKeyword(event.target.value)}
-                    />
+                    <input type="text" className="form-control bg-light border-start-0"
+                           placeholder={groupMode ? "Tìm phòng" : "Tìm kiếm"}
+                           aria-label={groupMode ? "Tìm phòng" : "Tìm kiếm"} value={keyword}
+                           onChange={(event: ChangeEvent<HTMLInputElement>) => setKeyword(event.target.value)}/>
                 </div>
             </div>
 
             <div className="sb-tabs d-flex align-items-center gap-2">
                 <div className="form-check mb-0 ms-2 me-auto text-nowrap">
-                    <input
-                        className="form-check-input"
-                        type="checkbox"
-                        id="sb-group-mode"
-                        checked={groupMode}
-                        onChange={(event: ChangeEvent<HTMLInputElement>) => setGroupMode(event.target.checked)}
-                    />
+                    <input className="form-check-input" type="checkbox" id="sb-group-mode" checked={groupMode}
+                           onChange={(event: ChangeEvent<HTMLInputElement>) => setGroupMode(event.target.checked)}/>
                     <label className="form-check-label" htmlFor="sb-group-mode">Phòng</label>
                 </div>
-                <button type="button" className="btn btn-sm btn-outline-secondary">
+                <button type="button" className="btn btn-sm btn-outline-secondary"
+                        onClick={() => setShowCreateRoom(true)}>
                     <i className="fa-solid fa-plus me-1" aria-hidden="true"></i>
                     Tạo phòng
                 </button>
-                <button
-                    type="button"
-                    className="btn btn-sm btn-primary"
-                    disabled={keyword.trim() === ""}>
+                <button type="button" className="btn btn-sm btn-primary" disabled={keyword.trim() === ""}>
                     <i className="fa-solid fa-arrow-right" aria-hidden="true"></i>
                 </button>
             </div>
 
             <div className="sb-list border bg-light rounded-3 p-2">
-                {MOCK_CONVERSATIONS.map((conversation) => (
-                    <ConversationItem key={conversation.id} conversation={conversation}/>
-                ))}
+                {conversations.map((conversation) => (
+                    <ConversationItem key={conversation.id} conversation={conversation}/>))}
             </div>
 
             <div className="sb-footer">
@@ -79,6 +82,9 @@ function ConversationSidebar({username, loading, error, onLogout}: Props) {
                     </button>
                 </div>
             </div>
+
+            {showCreateRoom && (
+                <CreateRoomModal onClose={() => setShowCreateRoom(false)} onCreated={handleRoomCreated}/>)}
         </aside>
     );
 }
