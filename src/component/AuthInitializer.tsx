@@ -1,22 +1,25 @@
-import { useEffect, useState, type ReactNode } from "react";
+import {useEffect, useState, type ReactNode} from "react";
 import { useDispatch } from "react-redux";
-import { authService } from "../services/authService";
+import {authService, AuthServiceError} from "../services/authService";
+import { websocketService } from "../services/websocket";
 import {loginSuccess, logout} from "../store/slice/AuthSlice";
-interface AuthInitializerProps {
-    children: ReactNode;
-}
-function AuthInitializer({ children }: AuthInitializerProps) {
+interface AuthInitializerProps {children: ReactNode;}
+function AuthInitializer({children}: AuthInitializerProps) {
     const dispatch = useDispatch();
     const [initialized, setInitialized] = useState(false);
     useEffect(() => {
+        let active = true;
         const restoreSession = async () => {
             const savedSession = authService.getSavedSession();
             if (!savedSession) {
-                setInitialized(true);
+                if (active) {
+                    setInitialized(true);
+                }
                 return;
             }
             try {
                 const newCode = await authService.reLogin(savedSession.username, savedSession.reLoginCode);
+                if (!active) return;
                 authService.saveSession(savedSession.username, newCode);
                 dispatch(
                     loginSuccess({
@@ -25,20 +28,27 @@ function AuthInitializer({ children }: AuthInitializerProps) {
                     })
                 );
             } catch (error) {
-                console.error("Không thể khôi phục phiên đăng nhập.");
-                const message = error instanceof Error ? error.message : "";
-                if (/session expired|re-login error/i.test(message)) {
+                if (!active) return;
+                console.error("Không thể khôi phục phiên đăng nhập:", error);
+                if (error instanceof AuthServiceError && error.code !== "REQUEST_FAILED") {
                     authService.clearSession();
                     dispatch(logout());
+                } else {
+                    websocketService.close();
                 }
             } finally {
-                setInitialized(true);
+                if (active) {
+                    setInitialized(true);
+                }
             }
         };
         restoreSession();
+        return () => {
+            active = false;
+        };
     }, [dispatch]);
     if (!initialized) {
-        return <div>Đang khôi phục phiên đăng nhập...</div>;
+        return (<div className="container text-center mt-5">Đang khôi phục phiên đăng nhập...</div>);
     }
     return <>{children}</>;
 }
