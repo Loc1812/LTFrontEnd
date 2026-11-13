@@ -1,5 +1,4 @@
 import type {ServerMessage, ConnectionStatus} from "../types/websocket";
-
 class WebSocketService {
     private socket: WebSocket | null = null;
     private listeners: Map<string, ((message: ServerMessage) => void)[]> = new Map();
@@ -38,6 +37,7 @@ class WebSocketService {
         this.connectPromise = promise;
         let isSettled = false;
         let hasOpened = false;
+        let timeout: number;
         const finish = (error?: Error) => {
             if (isSettled) return;
             isSettled = true;
@@ -48,18 +48,25 @@ class WebSocketService {
                 resolveConnect();
             }
         };
-        const timeout = window.setTimeout(() => {
+        timeout = window.setTimeout(() => {
             finish(new Error("WebSocket connection timeout."));
             socket.close();
         }, this.CONNECT_TIMEOUT);
         socket.onopen = () => {
+            if (this.socket !== socket || isSettled) {
+                socket.close();
+                return;
+            }
             hasOpened = true;
             this.notifyStatus("CONNECTED");
             finish();
         };
         socket.onmessage = (event: MessageEvent) => {
+            if (this.socket !== socket) return;
             try {
-                const message: ServerMessage = JSON.parse(event.data);
+                const message: ServerMessage = JSON.parse(
+                    event.data
+                );
                 if (!message || typeof message !== "object" || typeof message.event !== "string" || !["success", "error"].includes(message.status)) {
                     throw new Error("Invalid message format.");
                 }
@@ -69,6 +76,7 @@ class WebSocketService {
             }
         };
         socket.onerror = () => {
+            if (this.socket !== socket) return;
             this.notifyStatus("ERROR");
             if (!hasOpened) {
                 finish(new Error("WebSocket connection error."));
@@ -76,13 +84,12 @@ class WebSocketService {
             socket.close();
         };
         socket.onclose = () => {
+            if (this.socket !== socket) return;
             if (!hasOpened) {
                 finish(new Error("WebSocket closed before connection was established."));
             }
-            if (this.socket === socket) {
-                this.socket = null;
-                this.connectPromise = null;
-            }
+            this.socket = null;
+            this.connectPromise = null;
             this.notifyStatus("DISCONNECTED");
         };
         return promise;
@@ -93,7 +100,10 @@ class WebSocketService {
         }
         const message = {
             action: "onchat",
-            data: {event, ...(data !== undefined ? { data } : {})}
+            data: {
+                event,
+                ...(data !== undefined ? { data } : {})
+            }
         };
         this.socket!.send(JSON.stringify(message));
     }
@@ -127,7 +137,8 @@ class WebSocketService {
         });
     }
     private notifyStatus(status: ConnectionStatus): void {
-        this.statusListeners.forEach(callback => {
+        const callbacks = [...this.statusListeners];
+        callbacks.forEach(callback => {
             try {
                 callback(status);
             } catch (error) {
@@ -143,7 +154,7 @@ class WebSocketService {
         }
     }
     isConnected(): boolean {
-        return (this.socket?.readyState === WebSocket.OPEN);
+        return this.socket?.readyState === WebSocket.OPEN;
     }
 }
 export const websocketService = new WebSocketService();
