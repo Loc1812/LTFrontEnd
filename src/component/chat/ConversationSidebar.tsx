@@ -202,7 +202,7 @@ function ConversationSidebar({username, loading, error, onLogout}: Props) {
                         ? <span className="spinner-border spinner-border-sm" aria-hidden="true"></span>
                         : <i className="fa-solid fa-arrow-right" aria-hidden="true"></i>}
                 </button>
-            </div>
+
 
                 <div className="sb-list border bg-light rounded-3 p-2">
                     {conversations.map((conversation) => (
