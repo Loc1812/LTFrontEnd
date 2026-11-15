@@ -8,6 +8,7 @@ function Login() {
     const [mode, setMode] = useState<"login" | "register">("login");
     const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
+    const [confirmPassword, setConfirmPassword] = useState("");
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
     const [success, setSuccess] = useState("");
@@ -22,6 +23,16 @@ function Login() {
             setError("Username chỉ được chứa chữ cái, chữ số và dấu gạch dưới.");
             return;
         }
+        if (mode === "register") {
+            if (password.length < 8) {
+                setError("Mật khẩu phải có ít nhất 8 ký tự.");
+                return;
+            }
+            if (password !== confirmPassword) {
+                setError("Mật khẩu nhập lại không khớp.");
+                return;
+            }
+        }
         setLoading(true);
         try {
             if (mode === "login") {
@@ -34,6 +45,7 @@ function Login() {
                 setSuccess("Đăng ký thành công! Hãy đăng nhập.");
                 setMode("login");
                 setPassword("");
+                setConfirmPassword("");
             }
         } catch (error) {
             if (error instanceof Error) {
@@ -49,18 +61,20 @@ function Login() {
         setMode(newMode);
         setError("");
         setSuccess("");
+        setPassword("");
+        setConfirmPassword("");
     };
     return (
         <div className="container d-flex justify-content-center align-items-center min-vh-100">
             <div className="card shadow p-4" style={{ width: "400px" }}>
-                <h2 className="text-center mb-4">
+                <h2 style={{color: "black"}} className="text-center mb-4">
                     App Chat
                 </h2>
                 <div className="btn-group w-100 mb-4">
                     <button type="button" className={`btn ${mode === "login" ? "btn-primary" : "btn-outline-primary"}`}
                         onClick={() => changeMode("login")}
                         disabled={loading}>
-                        đăng nhập
+                        Đăng nhập
                     </button>
                     <button type="button" className={`btn ${mode === "register" ? "btn-primary" : "btn-outline-primary"}`}
                         onClick={() => changeMode("register")}
@@ -96,6 +110,15 @@ function Login() {
                         <input type="password" className="form-control" placeholder="Nhập password" value={password} required disabled={loading}
                             onChange={(event) => setPassword(event.target.value)}/>
                     </div>
+                    {mode === "register" && (
+                        <div className="mb-3">
+                            <label className="form-label">
+                                Xác nhận mật khẩu
+                            </label>
+                            <input type="password" className="form-control" placeholder="Nhập lại mật khẩu" value={confirmPassword} required disabled={loading}
+                                   onChange={(event) => setConfirmPassword(event.target.value)}/>
+                        </div>
+                    )}
                     <button type="submit" className="btn btn-success w-100" disabled={loading}>
                         {
                             loading ? "Đang xử lý..." : mode === "login" ? "Login" : "Register"

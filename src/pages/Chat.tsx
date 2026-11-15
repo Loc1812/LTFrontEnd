@@ -33,7 +33,7 @@ function Chat() {
     };
     return (
         <div className="container mt-4">
-            <h2>App Chat</h2>
+            <h2 style={{color: "black"}}>App Chat</h2>
             <p>Xin chào, {username}</p>
             {error && (
                 <div className="alert alert-warning">
