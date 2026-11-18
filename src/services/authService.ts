@@ -7,71 +7,91 @@ import type {
     LoginResponseData,
     ConnectionStatus
 } from "../types/websocket";
-
+export type AuthErrorCode = | "SESSION_EXPIRED" | "SERVER_ERROR" | "REQUEST_FAILED";
+export class AuthServiceError extends Error {
+    public code: AuthErrorCode;
+    constructor(message: string, code: AuthErrorCode) {
+        super(message);
+        this.name = "AuthServiceError";
+        this.code = code;
+    }
+}
 interface SavedSession {
     username: string;
     reLoginCode: string;
 }
-
 const SESSION_KEY = "appchat_session";
 class AuthService {
     private readonly REQUEST_TIMEOUT = 10000;
     private reLoginPromise: Promise<string> | null = null;
-
+    private activeRequests = new Set<string>();
     private async request(event: string, data?: LoginPayload | RegisterPayload | ReLoginPayload): Promise<ServerMessage> {
-        await websocketService.connect();
-        return new Promise((resolve, reject) => {
-            let completed = false;
-            let unsubscribeMessage = () => {
-            };
-            let unsubscribeStatus = () => {
-            };
-            const cleanup = () => {
-                window.clearTimeout(timeout);
-                unsubscribeMessage();
-                unsubscribeStatus();
-            };
-            const finish = (error?: Error, message?: ServerMessage) => {
-                if (completed) return;
-                completed = true;
-                cleanup();
-                if (error) {
-                    reject(error);
-                } else if (message) {
-                    resolve(message);
-                } else {
-                    reject(new Error("Response không hợp lệ."));
-                }
-            };
-            const timeout = window.setTimeout(() => {
-                finish(new Error(`${event}: Server không phản hồi sau 10 giây.`));
-            }, this.REQUEST_TIMEOUT);
-            unsubscribeMessage = websocketService.subscribe(
-                event, (message) => {
-                    if (message.status === "success") {
-                        finish(undefined, message);
-                    } else {
-                        finish(new Error(message.mes || `${event} thất bại.`));
-                    }
-                }
-            );
-            unsubscribeStatus = websocketService.subscribeStatus(
-                (status: ConnectionStatus) => {
-                    if (status === "ERROR" || status === "DISCONNECTED") {
-                        finish(new Error(`${event}: WebSocket đã mất kết nối.`));
-                    }
-                }
-            );
-            if (!websocketService.isConnected()) {
-                finish(new Error(`${event}: WebSocket không còn kết nối.`));
-                return;
-            }
+        if (this.activeRequests.has(event)) {
+            throw new AuthServiceError(`${event} request is already in progress.`, "REQUEST_FAILED");
+        }
+        this.activeRequests.add(event);
+        try {
             try {
-                websocketService.send(event, data);
-            } catch (error) {
-                finish(error instanceof Error ? error : new Error(`${event}: Không thể gửi request.`));
+                await websocketService.connect();
+            } catch {
+                throw new AuthServiceError(`${event}: Không thể kết nối WebSocket.`, "REQUEST_FAILED");
             }
-        });
+            return await new Promise<ServerMessage>(
+                (resolve, reject) => {
+                    let completed = false;
+                    let unsubscribeMessage = () => {};
+                    let unsubscribeStatus = () => {};
+                    let timeout: number;
+                    const cleanup = () => {
+                        window.clearTimeout(timeout);
+                        unsubscribeMessage();
+                        unsubscribeStatus();
+                    };
+                    const finish = (error?: Error, message?: ServerMessage) => {
+                        if (completed) return;
+                        completed = true;
+                        cleanup();
+                        if (error) {
+                            reject(error);
+                        } else if (message) {
+                            resolve(message);
+                        } else {
+                            reject(new AuthServiceError("Response không hợp lệ.", "REQUEST_FAILED"));
+                        }
+                    };
+                    timeout = window.setTimeout(() => {
+                        finish(new AuthServiceError(`${event}: Server không phản hồi sau 10 giây.`, "REQUEST_FAILED"));
+                    }, this.REQUEST_TIMEOUT);
+                    unsubscribeMessage = websocketService.subscribe(event, (message) => {
+                        if (message.status === "success") {
+                            finish(undefined, message);
+                        } else {
+                            const messageText = message.mes || `${event} thất bại.`;
+                            const isExpired = event === "RE_LOGIN" && /session expired|re-login error|invalid.*code/i.test(messageText);
+                            finish(new AuthServiceError(messageText, isExpired ? "SESSION_EXPIRED" : "SERVER_ERROR"));
+                        }
+                    }
+                    );
+                    unsubscribeStatus = websocketService.subscribeStatus(
+                        (status: ConnectionStatus) => {
+                            if (status === "ERROR" || status === "DISCONNECTED") {
+                                finish(new AuthServiceError(`${event}: WebSocket đã mất kết nối.`, "REQUEST_FAILED"));
+                            }
+                        });
+                    if (!websocketService.isConnected()) {
+                        finish(new AuthServiceError(`${event}: WebSocket không còn kết nối.`, "REQUEST_FAILED"));
+                        return;
+                    }
+                    try {
+                        websocketService.send(event, data);
+                    } catch {
+                        finish(new AuthServiceError(`${event}: Không thể gửi request.`, "REQUEST_FAILED"));
+                    }
+                }
+            );
+        } finally {
+            this.activeRequests.delete(event);
+        }
     }
     async login(user: string, pass: string): Promise<string> {
         const payload: LoginPayload = {user, pass};
@@ -79,7 +99,7 @@ class AuthService {
         const responseData = response.data as LoginResponseData | undefined;
         const code = responseData?.RE_LOGIN_CODE;
         if (!code) {
-            throw new Error("Server không trả về RE_LOGIN_CODE.");
+            throw new AuthServiceError("Server không trả về RE_LOGIN_CODE.", "SERVER_ERROR");
         }
         return code;
     }
@@ -87,7 +107,6 @@ class AuthService {
         const payload: RegisterPayload = {user, pass};
         await this.request("REGISTER", payload);
     }
-
     reLogin(user: string, code: string): Promise<string> {
         if (this.reLoginPromise) {
             return this.reLoginPromise;
@@ -96,12 +115,14 @@ class AuthService {
         const promise = this.request("RE_LOGIN", payload).then((response) => {
             const responseData = response.data as LoginResponseData | undefined;
             const newCode = responseData?.RE_LOGIN_CODE;
-            if (!newCode) {
-                throw new Error("Server không trả về RE_LOGIN_CODE mới.");
-            }
-            return newCode;
-        })
-            .finally(() => {this.reLoginPromise = null;});
+                if (!newCode) {
+                    throw new AuthServiceError("Server không trả về RE_LOGIN_CODE mới.", "SERVER_ERROR");
+                }
+                return newCode;
+            })
+            .finally(() => {
+                this.reLoginPromise = null;
+            });
         this.reLoginPromise = promise;
         return promise;
     }

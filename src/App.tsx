@@ -7,7 +7,7 @@ function App() {
 
   return (
       <AuthInitializer>
-        <RouterProvider router={router} />
+          <RouterProvider router={router} />
       </AuthInitializer>
   );
 }
