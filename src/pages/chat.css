@@ -234,3 +234,18 @@
   color: white;
   cursor: pointer;
 }
+
+.online-status {
+  display: block;
+  margin-top: 5px;
+  font-size: 12px;
+  color: #999;
+}
+
+.online-status.online {
+  color: #22a06b;
+}
+
+.online-status.offline {
+  color: #999;
+}
