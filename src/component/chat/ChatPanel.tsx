@@ -1,4 +1,4 @@
-import {useEffect, useRef, useState, type FormEvent} from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import type { RootState } from "../../store/Store";
 import {addMessage, setCurrentChat, setLoading, setMessages} from "../../store/slice/ChatSlice";
@@ -17,7 +17,6 @@ function ChatPanel() {
     const [checking, setChecking] = useState(false);
     const [sending, setSending] = useState(false);
     const [error, setError] = useState("");
-    const [success, setSuccess] = useState("");
     const [isOnline, setIsOnline] = useState<boolean | null>(null);
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -32,11 +31,10 @@ function ChatPanel() {
         if (!username || !currentChat) return;
 
         const unsubscribe = chatService.subscribeMessages((message) => {
-            const isReceivedMessage =
+            if (
                 message.sender === currentChat &&
-                message.receiver === username;
-
-            if (isReceivedMessage) {
+                message.receiver === username
+            ) {
                 dispatch(addMessage(message));
             }
         });
@@ -44,11 +42,46 @@ function ChatPanel() {
         return unsubscribe;
     }, [username, currentChat, dispatch]);
 
+    useEffect(() => {
+        setIsOnline(null);
+        if (!username || !currentChat) return;
+        let active = true;
+        let isChecking = false;
+
+        const checkOnline = async () => {
+            if (isChecking) return;
+            if (!websocketService.isConnected()) {
+                if (active) setIsOnline(null);
+                return;
+            }
+            isChecking = true;
+            try {
+                const status = await chatService.checkUserOnline(currentChat);
+                if (active) {
+                    setIsOnline(status);
+                }
+            } catch {
+                if (active) {
+                    setIsOnline(null);
+                }
+            } finally {
+                isChecking = false;
+            }
+        };
+        checkOnline();
+
+        const interval = window.setInterval(checkOnline, 3000);
+
+        return () => {
+            active = false;
+            window.clearInterval(interval);
+        };
+    }, [username, currentChat]);
+
     const handleSelectReceiver = async (
         event: FormEvent<HTMLFormElement>
     ) => {
         event.preventDefault();
-
         const target = receiver.trim();
 
         if (!target) {
@@ -62,13 +95,12 @@ function ChatPanel() {
         }
 
         if (!websocketService.isConnected()) {
-            setError("WebSocket chưa kết nối. Vui lòng đăng nhập lại.");
+            setError("WebSocket chưa kết nối.");
             return;
         }
 
         setChecking(true);
         setError("");
-        setSuccess("");
 
         try {
             const exists = await chatService.checkUserExist(target);
@@ -77,29 +109,19 @@ function ChatPanel() {
                 setError("Tài khoản không tồn tại.");
                 return;
             }
-            let onlineStatus: boolean | null = null;
-            try {
-                onlineStatus = await chatService.checkUserOnline(target);
-            } catch {
-                onlineStatus = null;
-            }
-            setIsOnline(onlineStatus);
 
             dispatch(setCurrentChat(target));
             dispatch(setLoading(true));
 
-            const history =
-                await chatService.getPeopleChatMessages(target, 1);
+            const history = await chatService.getPeopleChatMessages(target, 1);
 
             dispatch(setMessages(history));
-
-            setSuccess(`Đã mở cuộc trò chuyện với ${target}.`);
 
         } catch (err) {
             setError(
                 err instanceof Error
                     ? err.message
-                    : "Không thể mở cuộc trò chuyện."
+                    : "Không thể tìm người dùng."
             );
         } finally {
             dispatch(setLoading(false));
@@ -114,45 +136,30 @@ function ChatPanel() {
 
         const content = messageInput.trim();
 
-        if (!currentChat) {
-            setError("Vui lòng chọn người nhận trước.");
-            return;
-        }
-
-        if (!content) return;
-
-        if (!username) {
-            setError("Không xác định được tài khoản người gửi.");
-            return;
-        }
+        if (!currentChat || !content || !username || sending) return;
 
         if (!websocketService.isConnected()) {
             setError("WebSocket đã mất kết nối.");
             return;
         }
 
-        if (sending) return;
-
         try {
             setSending(true);
             setError("");
-            setSuccess("");
 
             chatService.sendPeopleMessage(currentChat, content);
 
-            dispatch(
-                addMessage({
-                    id: `local-${Date.now()}`,
-                    sender: username,
-                    receiver: currentChat,
-                    content: content,
-                    time: new Date().toLocaleTimeString("vi-VN", {
-                        hour: "2-digit",
-                        minute: "2-digit"
-                    }),
-                    type: 0
-                })
-            );
+            dispatch(addMessage({
+                id: `local-${Date.now()}`,
+                sender: username,
+                receiver: currentChat,
+                content,
+                time: new Date().toLocaleTimeString("vi-VN", {
+                    hour: "2-digit",
+                    minute: "2-digit"
+                }),
+                type: 0
+            }));
 
             setMessageInput("");
 
@@ -167,59 +174,60 @@ function ChatPanel() {
         }
     };
 
-    const handleCheckOnline = async () => {
-        if (!currentChat) return;
-
-        try {
-            const status = await chatService.checkUserOnline(currentChat);
-            setIsOnline(status);
-        } catch (err) {
-            setIsOnline(null);
-            setError("Không thể kiểm tra trạng thái online.");
-        }
-    };
-
     return (
         <main className="chat-main">
             <header className="chat-header">
                 <div>
                     <h3>{currentChat || "Chat cá nhân"}</h3>
+
                     {currentChat && (
-                        <span>
-                                {isOnline === true
-                                    ? "Đang online"
-                                    : isOnline === false
-                                        ? "Đang offline"
-                                        : "Chưa xác định"}
-                            </span>
+                        <span className={`online-status ${
+                            isOnline === true
+                                ? "online"
+                                : isOnline === false
+                                    ? "offline"
+                                    : ""
+                        }`}>
+                            {isOnline === true
+                                ? "● Đang online"
+                                : isOnline === false
+                                    ? "● Đang offline"
+                                    : "● Chưa xác định"}
+                        </span>
                     )}
                 </div>
-
-                {currentChat && (
-                    <button onClick={handleCheckOnline}>
-                        Kiểm tra online
-                    </button>
-                )}
             </header>
 
             {!currentChat && (
-                <form className="receiver-form" onSubmit={handleSelectReceiver}>
+                <form
+                    className="receiver-form"
+                    onSubmit={handleSelectReceiver}
+                >
                     <input
                         value={receiver}
                         onChange={(e) => setReceiver(e.target.value)}
                         placeholder="Nhập username..."
                     />
-                    <button type="submit">Tìm người dùng</button>
+
+                    <button type="submit" disabled={checking}>
+                        Tìm người dùng
+                    </button>
                 </form>
             )}
 
-            {error && <div className="chat-alert chat-alert-error">{error}</div>}
+            {error && (
+                <div className="chat-alert chat-alert-error">
+                    {error}
+                </div>
+            )}
 
             <section className="chat-messages">
                 {!currentChat ? (
                     <p>Chưa chọn người chat.</p>
                 ) : loading ? (
                     <p>Đang tải tin nhắn...</p>
+                ) : messages.length === 0 ? (
+                    <p>Chưa có tin nhắn.</p>
                 ) : (
                     messages.map((message, index) => (
                         <div
@@ -234,8 +242,11 @@ function ChatPanel() {
                                 <div className="message-content">
                                     {message.content}
                                 </div>
+
                                 {message.time && (
-                                    <div className="message-time">{message.time}</div>
+                                    <div className="message-time">
+                                        {message.time}
+                                    </div>
                                 )}
                             </div>
                         </div>
@@ -245,13 +256,21 @@ function ChatPanel() {
             </section>
 
             {currentChat && (
-                <form className="message-input-form" onSubmit={handleSendMessage}>
+                <form
+                    className="message-input-form"
+                    onSubmit={handleSendMessage}
+                >
                     <input
                         value={messageInput}
                         onChange={(e) => setMessageInput(e.target.value)}
                         placeholder="Nhập tin nhắn..."
+                        disabled={sending}
                     />
-                    <button type="submit" disabled={!messageInput.trim()}>
+
+                    <button
+                        type="submit"
+                        disabled={!messageInput.trim() || sending}
+                    >
                         Gửi
                     </button>
                 </form>
