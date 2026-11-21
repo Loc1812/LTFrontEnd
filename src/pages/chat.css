@@ -249,3 +249,8 @@
 .online-status.offline {
   color: #999;
 }
+
+.su-avatar {
+  width: 88px;
+  height: 88px;
+}

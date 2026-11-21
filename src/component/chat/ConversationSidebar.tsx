@@ -1,6 +1,11 @@
-import {useState, type ChangeEvent} from "react";
+import {useState, type ChangeEvent, type KeyboardEvent} from "react";
+import {useDispatch} from "react-redux";
 import ConversationItem, {type Conversation} from "./ConversationItem";
 import CreateRoomModal from "./CreateRoom";
+import SearchUserModal, {type SearchUserResult} from "./SearchUser";
+import {chatService} from "../../services/chatService";
+import {websocketService} from "../../services/websocket";
+import {setCurrentChat, setLoading, setMessages} from "../../store/slice/ChatSlice";
 
 const MOCK_CONVERSATIONS: Conversation[] = [
     // Du lieu để Test giao dien
@@ -19,8 +24,19 @@ interface Props {
     onLogout: () => void;
 }
 
+function toSearchErrorText(error: unknown): string {
+    const text = error instanceof Error ? error.message.trim() : "";
+    if (!text) return "Không thể tìm kiếm, vui lòng thử lại.";
+    if (/timeout$/i.test(text)) return "Máy chủ không phản hồi, vui lòng thử lại.";
+    return text;
+}
+
 function ConversationSidebar({username, loading, error, onLogout}: Props) {
+    const dispatch = useDispatch();
     const [keyword, setKeyword] = useState("");
+    const [searching, setSearching] = useState(false);
+    const [searchError, setSearchError] = useState("");
+    const [searchResult, setSearchResult] = useState<SearchUserResult | null>(null);
     const [groupMode, setGroupMode] = useState(false);
     const [conversations, setConversations] = useState<Conversation[]>(MOCK_CONVERSATIONS);
     const [showCreateRoom, setShowCreateRoom] = useState(false);
@@ -36,6 +52,60 @@ function ConversationSidebar({username, loading, error, onLogout}: Props) {
         setShowCreateRoom(false);
     };
 
+    const handleSearch = async () => {
+        const target = keyword.trim();
+        if (!target || searching) return;
+        if (groupMode) {
+            setSearchError("Chức năng tìm phòng sẽ được bổ sung sau.");
+            return;
+        }
+        if (target === username) {
+            setSearchError("Bạn không thể tự chat với chính mình.");
+            return;
+        }
+        if (!websocketService.isConnected()) {
+            setSearchError("WebSocket chưa kết nối.");
+            return;
+        }
+
+        setSearching(true);
+        setSearchError("");
+        try {
+            const exists = await chatService.checkUserExist(target);
+            if (!exists) {
+                setSearchError(`Không tìm thấy người dùng "${target}".`);
+                return;
+            }
+
+            let online: boolean | null = null;
+            try {
+                online = await chatService.checkUserOnline(target);
+            } catch {
+                online = null;
+            }
+            setSearchResult({name: target, online});
+        } catch (err) {
+            setSearchError(toSearchErrorText(err));
+        } finally {
+            setSearching(false);
+        }
+    };
+
+    const handleStartChat = async (target: string) => {
+        setSearchResult(null);
+        setSearchError("");
+        dispatch(setCurrentChat(target));
+        dispatch(setLoading(true));
+        try {
+            const history = await chatService.getPeopleChatMessages(target, 1);
+            dispatch(setMessages(history));
+        } catch (err) {
+            setSearchError(toSearchErrorText(err));
+        } finally {
+            dispatch(setLoading(false));
+        }
+    };
+
     return (
         <aside className="chat-sidebar">
             <div className="sb-search">
@@ -46,8 +116,15 @@ function ConversationSidebar({username, loading, error, onLogout}: Props) {
                     <input type="text" className="form-control bg-light border-start-0"
                            placeholder={groupMode ? "Tìm phòng" : "Tìm kiếm"}
                            aria-label={groupMode ? "Tìm phòng" : "Tìm kiếm"} value={keyword}
-                           onChange={(event: ChangeEvent<HTMLInputElement>) => setKeyword(event.target.value)}/>
+                           onChange={(event: ChangeEvent<HTMLInputElement>) => {
+                               setKeyword(event.target.value);
+                               if (searchError) setSearchError("");
+                           }}
+                           onKeyDown={(event: KeyboardEvent<HTMLInputElement>) => {
+                               if (event.key === "Enter") handleSearch();
+                           }}/>
                 </div>
+                {searchError && <div className="text-danger small mt-1" role="alert">{searchError}</div>}
             </div>
 
             <div className="sb-tabs d-flex align-items-center gap-2">
@@ -61,8 +138,11 @@ function ConversationSidebar({username, loading, error, onLogout}: Props) {
                     <i className="fa-solid fa-plus me-1" aria-hidden="true"></i>
                     Tạo phòng
                 </button>
-                <button type="button" className="btn btn-sm btn-primary" disabled={keyword.trim() === ""}>
-                    <i className="fa-solid fa-arrow-right" aria-hidden="true"></i>
+                <button type="button" className="btn btn-sm btn-primary" aria-label="Tìm"
+                        disabled={keyword.trim() === "" || searching} onClick={handleSearch}>
+                    {searching
+                        ? <span className="spinner-border spinner-border-sm" aria-hidden="true"></span>
+                        : <i className="fa-solid fa-arrow-right" aria-hidden="true"></i>}
                 </button>
             </div>
 
@@ -85,6 +165,10 @@ function ConversationSidebar({username, loading, error, onLogout}: Props) {
 
             {showCreateRoom && (
                 <CreateRoomModal onClose={() => setShowCreateRoom(false)} onCreated={handleRoomCreated}/>)}
+
+            {searchResult && (
+                <SearchUserModal user={searchResult} onClose={() => setSearchResult(null)}
+                                 onMessage={handleStartChat}/>)}
         </aside>
     );
 }
