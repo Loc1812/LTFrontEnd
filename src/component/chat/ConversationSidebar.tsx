@@ -160,21 +160,21 @@ function ConversationSidebar({username, loading, error, onLogout}: Props) {
                     <span className="input-group-text bg-light border-end-0">
                         <i className="fa-solid fa-magnifying-glass text-secondary" aria-hidden="true"></i>
                     </span>
-                    <input type="text" className="form-control bg-light border-start-0"
-                           placeholder={groupMode ? "Tìm phòng" : "Tìm kiếm"}
-                           aria-label={groupMode ? "Tìm phòng" : "Tìm kiếm"} value={keyword}
-                           onChange={(event: ChangeEvent<HTMLInputElement>) => {
-                               setKeyword(event.target.value);
-                               if (searchError) setSearchError("");
-                               if (searchNotice) setSearchNotice("");
-                           }}
-                           onKeyDown={(event: KeyboardEvent<HTMLInputElement>) => {
-                               if (event.key === "Enter") handleSearch();
-                           }}/>
+                        <input type="text" className="form-control bg-light border-start-0"
+                               placeholder={groupMode ? "Tìm phòng" : "Tìm kiếm"}
+                               aria-label={groupMode ? "Tìm phòng" : "Tìm kiếm"} value={keyword}
+                               onChange={(event: ChangeEvent<HTMLInputElement>) => {
+                                   setKeyword(event.target.value);
+                                   if (searchError) setSearchError("");
+                                   if (searchNotice) setSearchNotice("");
+                               }}
+                               onKeyDown={(event: KeyboardEvent<HTMLInputElement>) => {
+                                   if (event.key === "Enter") handleSearch();
+                               }}/>
+                    </div>
+                    {searchError && <div className="text-danger small mt-1" role="alert">{searchError}</div>}
+                    {searchNotice && <div className="text-success small mt-1" role="status">{searchNotice}</div>}
                 </div>
-                {searchError && <div className="text-danger small mt-1" role="alert">{searchError}</div>}
-                {searchNotice && <div className="text-success small mt-1" role="status">{searchNotice}</div>}
-            </div>
 
                 <div className="sb-tabs d-flex align-items-center gap-2">
                     <div className="form-check mb-0 ms-2 me-auto text-nowrap">
@@ -187,22 +187,13 @@ function ConversationSidebar({username, loading, error, onLogout}: Props) {
                         <i className="fa-solid fa-plus me-1" aria-hidden="true"></i>
                         Tạo phòng
                     </button>
-                    <button type="button" className="btn btn-sm btn-primary" disabled={keyword.trim() === ""}>
-                        <i className="fa-solid fa-arrow-right" aria-hidden="true"></i>
+                    <button type="button" className="btn btn-sm btn-primary" aria-label="Tìm"
+                            disabled={keyword.trim() === "" || searching} onClick={handleSearch}>
+                        {searching
+                            ? <span className="spinner-border spinner-border-sm" aria-hidden="true"></span>
+                            : <i className="fa-solid fa-arrow-right" aria-hidden="true"></i>}
                     </button>
                 </div>
-                <button type="button" className="btn btn-sm btn-outline-secondary"
-                        onClick={() => setShowCreateRoom(true)}>
-                    <i className="fa-solid fa-plus me-1" aria-hidden="true"></i>
-                    Tạo phòng
-                </button>
-                <button type="button" className="btn btn-sm btn-primary" aria-label="Tìm"
-                        disabled={keyword.trim() === "" || searching} onClick={handleSearch}>
-                    {searching
-                        ? <span className="spinner-border spinner-border-sm" aria-hidden="true"></span>
-                        : <i className="fa-solid fa-arrow-right" aria-hidden="true"></i>}
-                </button>
-
 
                 <div className="sb-list border bg-light rounded-3 p-2">
                     {conversations.map((conversation) => (
@@ -260,7 +251,7 @@ function ConversationSidebar({username, loading, error, onLogout}: Props) {
                 )}
                 {searchResult && (
                     <SearchUserModal user={searchResult} onClose={() => setSearchResult(null)}
-                                 onMessage={handleStartChat}/>)}
+                                     onMessage={handleStartChat}/>)}
             </aside>
             {loading && (
                 <div className="loading_overlay">
@@ -285,11 +276,13 @@ function ConversationSidebar({username, loading, error, onLogout}: Props) {
                             </p>
                             <div className="d-flex justify-content-end gap-2">
                                 <button type="button" className="btn btn-sm btn-outline-secondary"
-                                    onClick={() => setShowLogoutConfirm(false)}>
+                                        onClick={() => setShowLogoutConfirm(false)}>
                                     Hủy
                                 </button>
                                 <button type="button" className="btn btn-sm btn-danger" onClick={() => {
-                                    setShowLogoutConfirm(false);onLogout();}}>
+                                    setShowLogoutConfirm(false);
+                                    onLogout();
+                                }}>
                                     <i className="fa-solid fa-right-from-bracket me-1"></i>
                                     Đăng xuất
                                 </button>
