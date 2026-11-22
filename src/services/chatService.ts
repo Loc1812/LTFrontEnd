@@ -142,6 +142,20 @@ class ChatService {
             : roomName;
     }
 
+    async joinRoom(name: string): Promise<string> {
+        const roomName = name.trim();
+        if (!roomName) {
+            throw new Error("Tên phòng không được để trống.");
+        }
+        const data = await this.request("JOIN_ROOM", {
+            name: roomName
+        });
+
+        return isObject(data) && typeof data.name === "string"
+            ? data.name
+            : roomName;
+    }
+
     async checkUserOnline(user: string): Promise<boolean> {
         const data = await this.request("CHECK_USER_ONLINE", {
             user
