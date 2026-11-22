@@ -199,26 +199,14 @@ function ChatPanel() {
             </header>
 
             {!currentChat && (
-                <form
-                    className="receiver-form"
-                    onSubmit={handleSelectReceiver}
-                >
-                    <input
-                        value={receiver}
-                        onChange={(e) => setReceiver(e.target.value)}
-                        placeholder="Nhập username..."
-                    />
-
-                    <button type="submit" disabled={checking}>
-                        Tìm người dùng
-                    </button>
+                <form className="receiver-form" onSubmit={handleSelectReceiver}>
+                    <input value={receiver} onChange={(e) => setReceiver(e.target.value)} placeholder="Nhập username..."/>
+                    <button type="submit" disabled={checking}>Tìm người dùng</button>
                 </form>
             )}
 
             {error && (
-                <div className="chat-alert chat-alert-error">
-                    {error}
-                </div>
+                <div className="chat-alert chat-alert-error">{error}</div>
             )}
 
             <section className="chat-messages">
@@ -230,23 +218,12 @@ function ChatPanel() {
                     <p>Chưa có tin nhắn.</p>
                 ) : (
                     messages.map((message, index) => (
-                        <div
-                            key={message.id ?? index}
-                            className={`message-row ${
-                                message.sender === username
-                                    ? "message-mine"
-                                    : "message-theirs"
-                            }`}
-                        >
+                        <div key={message.id ?? index}
+                            className={`message-row ${message.sender === username ? "message-mine" : "message-theirs"}`}>
                             <div className="message-bubble">
-                                <div className="message-content">
-                                    {message.content}
-                                </div>
-
+                                <div className="message-content">{message.content}</div>
                                 {message.time && (
-                                    <div className="message-time">
-                                        {message.time}
-                                    </div>
+                                    <div className="message-time">{message.time}</div>
                                 )}
                             </div>
                         </div>
@@ -256,23 +233,9 @@ function ChatPanel() {
             </section>
 
             {currentChat && (
-                <form
-                    className="message-input-form"
-                    onSubmit={handleSendMessage}
-                >
-                    <input
-                        value={messageInput}
-                        onChange={(e) => setMessageInput(e.target.value)}
-                        placeholder="Nhập tin nhắn..."
-                        disabled={sending}
-                    />
-
-                    <button
-                        type="submit"
-                        disabled={!messageInput.trim() || sending}
-                    >
-                        Gửi
-                    </button>
+                <form className="message-input-form" onSubmit={handleSendMessage}>
+                    <input value={messageInput} onChange={(e) => setMessageInput(e.target.value)} placeholder="Nhập tin nhắn..." disabled={sending}/>
+                    <button type="submit" disabled={!messageInput.trim() || sending}>Gửi</button>
                 </form>
             )}
         </main>
