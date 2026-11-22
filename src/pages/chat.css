@@ -460,4 +460,8 @@
   to {
     transform: rotate(360deg);
   }
+
+.su-avatar {
+  width: 88px;
+  height: 88px;
 }
