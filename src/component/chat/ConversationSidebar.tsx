@@ -1,21 +1,18 @@
-import {useState, useEffect, useRef, type ChangeEvent, type KeyboardEvent} from "react";
-import {useDispatch} from "react-redux";
-import ConversationItem, {type Conversation} from "./ConversationItem";
+import {useState, useEffect, useRef, useCallback, type ChangeEvent, type KeyboardEvent} from "react";
+import {useDispatch, useSelector} from "react-redux";
+import ConversationItem from "./ConversationItem";
 import CreateRoomModal from "./CreateRoom";
 import SearchUserModal, {type SearchUserResult} from "./SearchUser";
 import {chatService} from "../../services/chatService";
 import {websocketService} from "../../services/websocket";
-import {setCurrentChat, setLoading, setMessages} from "../../store/slice/ChatSlice";
-
-const MOCK_CONVERSATIONS: Conversation[] = [
-    // Du lieu để Test giao dien
-    {id: "1", name: "tranthib", type: "people", lastMessageAt: "2026-11-18T21:35:00"},
-    {id: "2", name: "Phòng Datamining", type: "room", lastMessageAt: "2026-11-18T09:12:00"},
-    {id: "3", name: "lethic", type: "people", lastMessageAt: "2026-11-17T20:48:00"},
-    {id: "4", name: "Lớp CNTT K23", type: "room", lastMessageAt: "2026-11-16T14:03:00"},
-    {id: "5", name: "phamvand", type: "people", lastMessageAt: "2026-11-12T08:30:00"},
-    {id: "6", name: "Phòng đồ án Web", type: "room", lastMessageAt: "2026-11-05T19:20:00"},
-];
+import {
+    mergeConversations,
+    setCurrentChat,
+    setLoading,
+    setMessages,
+    upsertConversation
+} from "../../store/slice/ChatSlice";
+import type {RootState} from "../../store/Store";
 
 interface Props {
     username: string | null;
@@ -31,6 +28,13 @@ function toSearchErrorText(error: unknown): string {
     return text;
 }
 
+function toListErrorText(error: unknown): string {
+    const text = error instanceof Error ? error.message.trim() : "";
+    if (!text) return "Không thể tải danh sách trò chuyện.";
+    if (/timeout$/i.test(text)) return "Máy chủ không phản hồi, không tải được danh sách trò chuyện.";
+    return text;
+}
+
 function ConversationSidebar({username, loading, error, onLogout}: Props) {
     const dispatch = useDispatch();
     const [keyword, setKeyword] = useState("");
@@ -39,7 +43,11 @@ function ConversationSidebar({username, loading, error, onLogout}: Props) {
     const [searchNotice, setSearchNotice] = useState("");
     const [searchResult, setSearchResult] = useState<SearchUserResult | null>(null);
     const [groupMode, setGroupMode] = useState(false);
-    const [conversations, setConversations] = useState<Conversation[]>(MOCK_CONVERSATIONS);
+    const conversations = useSelector((state: RootState) => state.chat.conversations);
+    const reLoginCode = useSelector((state: RootState) => state.auth.reLoginCode);
+    const [listLoading, setListLoading] = useState(true);
+    const [listError, setListError] = useState("");
+    const loadSeq = useRef(0);
     const [showCreateRoom, setShowCreateRoom] = useState(false);
     const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
     const [showFrame, setShowFrame] = useState(false);
@@ -56,14 +64,37 @@ function ConversationSidebar({username, loading, error, onLogout}: Props) {
             document.removeEventListener("mousedown", handleClickOutside);
         };
     }, []);
+    const loadConversations = useCallback(async () => {
+        const seq = ++loadSeq.current;
+        setListLoading(true);
+        setListError("");
+        if (!websocketService.isConnected()) return;
+        try {
+            const list = await chatService.getUserList();
+            if (seq !== loadSeq.current) return;
+            dispatch(mergeConversations(list));
+        } catch (err) {
+            if (seq !== loadSeq.current) return;
+            setListError(toListErrorText(err));
+        } finally {
+            if (seq === loadSeq.current) setListLoading(false);
+        }
+    }, [dispatch]);
+    useEffect(() => {
+        if (!username || !reLoginCode) return;
+        loadConversations();
+        return () => {
+            loadSeq.current++;
+        };
+    }, [username, reLoginCode, loadConversations]);
+
     const handleRoomCreated = (roomName: string) => {
-        setConversations((previous) => [
-            {
-                id: `room-${roomName}`,
-                name: roomName,
-                type: "room",
-                lastMessageAt: new Date().toISOString()
-            }, ...previous,]);
+        dispatch(upsertConversation({
+            id: `room-${roomName}`,
+            name: roomName,
+            type: "room",
+            lastMessageAt: new Date().toISOString()
+        }));
         setShowCreateRoom(false);
     };
 
@@ -73,15 +104,12 @@ function ConversationSidebar({username, loading, error, onLogout}: Props) {
         setSearchNotice("");
         try {
             const joinedName = await chatService.joinRoom(roomName);
-            setConversations((previous) => [
-                {
-                    id: `room-${joinedName}`,
-                    name: joinedName,
-                    type: "room",
-                    lastMessageAt: new Date().toISOString()
-                },
-                ...previous.filter((item) => !(item.type === "room" && item.name === joinedName)),
-            ]);
+            dispatch(upsertConversation({
+                id: `room-${joinedName}`,
+                name: joinedName,
+                type: "room",
+                lastMessageAt: new Date().toISOString()
+            }));
             setKeyword("");
             setSearchNotice(`Đã tham gia phòng "${joinedName}".`);
         } catch (err) {
@@ -140,6 +168,12 @@ function ConversationSidebar({username, loading, error, onLogout}: Props) {
     const handleStartChat = async (target: string) => {
         setSearchResult(null);
         setSearchError("");
+        dispatch(upsertConversation({
+            id: `people-${target}`,
+            name: target,
+            type: "people",
+            lastMessageAt: new Date().toISOString()
+        }));
         dispatch(setCurrentChat(target));
         dispatch(setLoading(true));
         try {
@@ -196,6 +230,21 @@ function ConversationSidebar({username, loading, error, onLogout}: Props) {
                 </div>
 
                 <div className="sb-list border bg-light rounded-3 p-2">
+                    {listError && (
+                        <div className="alert alert-warning py-1 px-2 mb-2 small d-flex align-items-center justify-content-between gap-2"
+                             role="alert">
+                            <span>{listError}</span>
+                            <button type="button" className="btn btn-sm btn-outline-secondary text-nowrap"
+                                    onClick={loadConversations}>Thử lại
+                            </button>
+                        </div>)}
+                    {listLoading && conversations.length === 0 && (
+                        <div className="text-center text-secondary small py-3" role="status">
+                            <span className="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+                            Đang tải danh sách...
+                        </div>)}
+                    {!listLoading && !listError && conversations.length === 0 && (
+                        <div className="text-center text-secondary small py-3">Chưa có cuộc trò chuyện nào.</div>)}
                     {conversations.map((conversation) => (
                         <ConversationItem key={conversation.id} conversation={conversation}/>))}
                 </div>

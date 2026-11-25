@@ -1,6 +1,7 @@
 import { websocketService } from "./websocket";
 import type { ServerMessage } from "../types/websocket";
 import type { ChatMessage } from "../store/slice/ChatSlice";
+import type { Conversation } from "../component/chat/ConversationItem";
 
 interface ApiChatMessage {
     id?: number;
@@ -154,6 +155,33 @@ class ChatService {
         return isObject(data) && typeof data.name === "string"
             ? data.name
             : roomName;
+    }
+    async getUserList(): Promise<Conversation[]> {
+        const data = await this.request("GET_USER_LIST", {});
+
+        if (data === undefined || data === null) {
+            return [];
+        }
+        if (!Array.isArray(data)) {
+            throw new Error("Dữ liệu danh sách trò chuyện không hợp lệ.");
+        }
+
+        const list: Conversation[] = [];
+        for (const item of data) {
+            if (!isObject(item) || typeof item.name !== "string" || (item.type !== 0 && item.type !== 1)) {
+                continue;
+            }
+            const type = item.type === 1 ? "room" : "people";
+            list.push({
+                id: `${type}-${item.name}`,
+                name: item.name,
+                type,
+                lastMessageAt: typeof item.actionTime === "string"
+                    ? item.actionTime.replace(" ", "T")
+                    : ""
+            });
+        }
+        return list;
     }
 
     async checkUserOnline(user: string): Promise<boolean> {
