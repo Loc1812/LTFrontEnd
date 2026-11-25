@@ -198,13 +198,6 @@ function ChatPanel() {
                 </div>
             </header>
 
-            {!currentChat && (
-                <form className="receiver-form" onSubmit={handleSelectReceiver}>
-                    <input value={receiver} onChange={(e) => setReceiver(e.target.value)} placeholder="Nhập username..."/>
-                    <button type="submit" disabled={checking}>Tìm người dùng</button>
-                </form>
-            )}
-
             {error && (
                 <div className="chat-alert chat-alert-error">{error}</div>
             )}

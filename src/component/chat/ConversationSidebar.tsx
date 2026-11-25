@@ -44,6 +44,8 @@ function ConversationSidebar({username, loading, error, onLogout}: Props) {
     const [searchResult, setSearchResult] = useState<SearchUserResult | null>(null);
     const [groupMode, setGroupMode] = useState(false);
     const conversations = useSelector((state: RootState) => state.chat.conversations);
+    const currentChat = useSelector((state: RootState) => state.chat.currentChat);
+    const selectSeq = useRef(0);
     const reLoginCode = useSelector((state: RootState) => state.auth.reLoginCode);
     const [listLoading, setListLoading] = useState(true);
     const [listError, setListError] = useState("");
@@ -87,6 +89,38 @@ function ConversationSidebar({username, loading, error, onLogout}: Props) {
             loadSeq.current++;
         };
     }, [username, reLoginCode, loadConversations]);
+
+    const handleSelectConversation = async (
+        conversation: typeof conversations[number]
+    ) => {
+        if (conversation.type !== "people") return;
+        if (!websocketService.isConnected()) {
+            setSearchError("WebSocket chưa kết nối.");
+            return;
+        }
+
+        const seq = ++selectSeq.current;
+
+        dispatch(setCurrentChat(conversation.name));
+        dispatch(setMessages([]));
+        dispatch(setLoading(true));
+        setSearchError("");
+
+        try {
+            const history = await chatService.getPeopleChatMessages(conversation.name, 1);
+            if (seq === selectSeq.current) {
+                dispatch(setMessages(history));
+            }
+        } catch (err) {
+            if (seq === selectSeq.current) {
+                setSearchError(toSearchErrorText(err));
+            }
+        } finally {
+            if (seq === selectSeq.current) {
+                dispatch(setLoading(false));
+            }
+        }
+    };
 
     const handleRoomCreated = (roomName: string) => {
         dispatch(upsertConversation({
@@ -246,7 +280,21 @@ function ConversationSidebar({username, loading, error, onLogout}: Props) {
                     {!listLoading && !listError && conversations.length === 0 && (
                         <div className="text-center text-secondary small py-3">Chưa có cuộc trò chuyện nào.</div>)}
                     {conversations.map((conversation) => (
-                        <ConversationItem key={conversation.id} conversation={conversation}/>))}
+                        <div
+                            key={conversation.id}
+                            className="conversation-clickable"
+                            onClick={() => handleSelectConversation(conversation)}
+                            role="button"
+                            tabIndex={0}
+                            onKeyDown={(event) => {
+                                if (event.key === "Enter") {
+                                    handleSelectConversation(conversation);
+                                }
+                            }}
+                        >
+                            <ConversationItem conversation={conversation} />
+                        </div>
+                    ))}
                 </div>
 
                 <div className="sb-footer">

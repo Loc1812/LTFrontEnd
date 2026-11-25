@@ -39,6 +39,18 @@ function mapMessage(data: unknown): ChatMessage {
     };
 }
 
+function getMessageTimestamp(time?: string): number {
+    if (!time) return 0;
+    const numeric = Number(time);
+    if (time.trim() !== "" && Number.isFinite(numeric)) {
+        return numeric < 1_000_000_000_000
+            ? numeric * 1000
+            : numeric;
+    }
+    const timestamp = Date.parse(time);
+    return Number.isNaN(timestamp) ? 0 : timestamp;
+}
+
 class ChatService {
     private request(
         event: string,
@@ -96,7 +108,12 @@ class ChatService {
             throw new Error("Dữ liệu lịch sử chat không hợp lệ.");
         }
 
-        return data.map(mapMessage);
+        const messages = data.map(mapMessage);
+        return messages.sort(
+            (a, b) =>
+                getMessageTimestamp(a.time) -
+                getMessageTimestamp(b.time)
+        );
     }
 
     sendPeopleMessage(to: string, mes: string): void {
