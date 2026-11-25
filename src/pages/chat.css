@@ -459,9 +459,18 @@
 @keyframes loadingRotate {
   to {
     transform: rotate(360deg);
-  }
+  }s
 
 .su-avatar {
   width: 88px;
   height: 88px;
+}
+
+.conversation-clickable {
+  cursor: pointer;
+}
+
+.conversation-clickable:focus-visible {
+  outline: 2px solid #3978e8;
+  border-radius: 8px;
 }
