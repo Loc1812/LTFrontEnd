@@ -60,7 +60,7 @@ class AuthService {
                         }
                     };
                     timeout = window.setTimeout(() => {
-                        finish(new AuthServiceError(`${event}: Server không phản hồi sau 10 giây.`, "REQUEST_FAILED"));
+                        finish(new AuthServiceError(`${event}: Server không phản hồi quá 10 giây.`, "REQUEST_FAILED"));
                     }, this.REQUEST_TIMEOUT);
                     unsubscribeMessage = websocketService.subscribe(event, (message) => {
                         if (message.status === "success") {

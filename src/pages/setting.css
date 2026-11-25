@@ -1,0 +1,230 @@
+.setting_overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: var(--app-overlay);
+    animation: fadeOverlay 0.2s ease;
+}
+
+.setting_dialog {
+    display: flex;
+    flex-direction: column;
+    width: 1000px;
+    height: 650px;
+    max-width: 95vw;
+    max-height: 90vh;
+    overflow: hidden;
+    color: var(--app-text);
+    background: var(--app-panel-bg);
+    border: 1px solid var(--app-border);
+    border-radius: 10px;
+    box-shadow: var(--app-shadow);
+}
+.setting_dialog.logout-form{
+    width: 450px !important;
+    height: 200px !important;
+}
+
+.setting_header {
+    display: flex;
+    flex: 0 0 65px;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 22px;
+    background: var(--app-panel-bg);
+    border-bottom: 1px solid var(--app-border);
+}
+
+.setting_header h2 {
+    margin: 0;
+    color: var(--app-text);
+    font-size: 20px;
+    font-weight: 600;
+}
+
+.setting_close,
+.logout_close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    color: var(--app-text-secondary);
+    font-size: 20px;
+    background: transparent;
+    border: 0;
+    border-radius: 50%;
+    transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+
+.setting_close:hover,
+.logout_close:hover {
+    color: var(--danger);
+    background: var(--app-hover-bg);
+    transform: rotate(90deg);
+}
+
+.setting_container {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+}
+
+.setting_sidebar {
+    flex: 0 0 270px;
+    padding: 12px 10px;
+    overflow-y: auto;
+    background: var(--app-sidebar-bg);
+    border-right: 1px solid var(--app-border);
+}
+
+.setting_menu {
+    display: block;
+    width: 100%;
+    margin-bottom: 4px;
+    padding: 13px 15px;
+    color: var(--app-text);
+    font-size: 15px;
+    text-align: left;
+    background: transparent;
+    border: 0;
+    border-radius: 8px;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.setting_menu:hover {
+    color: var(--primary);
+    background: var(--app-hover-bg);
+}
+
+.setting_menu.active {
+    color: var(--primary);
+    font-weight: 600;
+    background: var(--app-active-bg);
+}
+
+.setting_content {
+    flex: 1;
+    min-width: 0;
+    padding: 28px;
+    overflow-y: auto;
+    color: var(--app-text);
+    background: var(--app-content-bg);
+}
+
+.setting_content h3 {
+    margin: 0 0 24px;
+    color: var(--app-text);
+    font-size: 20px;
+    font-weight: 600;
+}
+
+.setting_section {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    padding: 0 18px;
+    background: var(--app-panel-bg);
+    border: 1px solid var(--app-border);
+    border-radius: 10px;
+}
+
+.setting_item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    min-height: 72px;
+    padding: 14px 0;
+}
+
+.setting_item + .setting_item {
+    border-top: 1px solid var(--app-border);
+}
+
+.setting_item_info h5 {
+    margin: 0 0 6px;
+    color: var(--app-text);
+    font-size: 15px;
+    font-weight: 500;
+}
+
+.setting_item_info p {
+    margin: 0;
+    color: var(--app-text-secondary);
+    font-size: 13px;
+}
+
+.setting_part {
+    flex: 0 0 180px;
+    width: 180px;
+    min-height: 40px;
+    color: var(--app-text);
+    background-color: var(--app-input-bg);
+    border: 1px solid var(--app-border);
+    border-radius: 6px;
+}
+
+.setting_part:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.16);
+}
+
+@keyframes fadeOverlay {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@media (max-width: 768px) {
+    .setting_dialog {
+        width: 95vw;
+        height: 85vh;
+    }
+
+    .setting_sidebar {
+        flex-basis: 190px;
+    }
+
+    .setting_content {
+        padding: 20px 15px;
+    }
+
+    .setting_item {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .setting_part {
+        flex-basis: auto;
+        width: 100%;
+    }
+}
+
+@media (max-width: 480px) {
+    .setting_overlay {
+        padding: 8px;
+    }
+
+    .setting_sidebar {
+        flex-basis: 135px;
+        padding: 8px 5px;
+    }
+
+    .setting_menu {
+        padding: 11px 8px;
+        font-size: 12px;
+    }
+
+    .setting_content {
+        padding: 15px 10px;
+    }
+
+    .setting_content h3 {
+        font-size: 17px;
+    }
+}

@@ -5,6 +5,8 @@ import CreateRoomModal from "./CreateRoom";
 import SearchUserModal, {type SearchUserResult} from "./SearchUser";
 import {chatService} from "../../services/chatService";
 import {websocketService} from "../../services/websocket";
+import SettingDialog from "./SettingDialog";
+import { useTranslation } from "react-i18next";
 import {
     mergeConversations,
     setCurrentChat,
@@ -54,6 +56,7 @@ function ConversationSidebar({username, loading, error, onLogout}: Props) {
     const [showFrame, setShowFrame] = useState(false);
     const [showSetting, setShowSetting] = useState(false);
     const settingRef = useRef<HTMLDivElement>(null);
+    const { t } = useTranslation();
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (settingRef.current && !settingRef.current.contains(event.target as Node)) {
@@ -257,10 +260,10 @@ function ConversationSidebar({username, loading, error, onLogout}: Props) {
             <aside className="chat-sidebar">
                 <div className="sb-search">
                     <div className="input-group input-group-sm">
-                    <span className="input-group-text bg-light border-end-0">
+                    <span className="input-group-text border-end-0">
                         <i className="fa-solid fa-magnifying-glass text-secondary" aria-hidden="true"></i>
                     </span>
-                        <input type="text" className="form-control bg-light border-start-0"
+                        <input type="text" className="form-control border-start-0"
                                placeholder={groupMode ? "Tìm phòng" : "Tìm kiếm"}
                                aria-label={groupMode ? "Tìm phòng" : "Tìm kiếm"} value={keyword}
                                onChange={(event: ChangeEvent<HTMLInputElement>) => {
@@ -295,7 +298,7 @@ function ConversationSidebar({username, loading, error, onLogout}: Props) {
                     </button>
                 </div>
 
-                <div className="sb-list border bg-light rounded-3 p-2">
+                <div className="sb-list border rounded-3 p-2">
                     {listError && (
                         <div className="alert alert-warning py-1 px-2 mb-2 small d-flex align-items-center justify-content-between gap-2"
                              role="alert">
@@ -336,7 +339,7 @@ function ConversationSidebar({username, loading, error, onLogout}: Props) {
                                     setShowLogoutConfirm(true);
                                 }} disabled={loading}>
                                     <i className="fa-solid fa-right-from-bracket me-1"></i>
-                                    <span>Đăng xuất</span>
+                                    <span> {t("logout")}</span>
                                 </button>
                             </div>
                         )}
@@ -355,19 +358,7 @@ function ConversationSidebar({username, loading, error, onLogout}: Props) {
                 {showCreateRoom && (
                     <CreateRoomModal onClose={() => setShowCreateRoom(false)} onCreated={handleRoomCreated}/>)}
                 {showSetting && (
-                    <div className="setting_overlay" onClick={() => setShowSetting(false)}>
-                        <div className="setting_dialog" onClick={(event) => event.stopPropagation()}>
-                            <div className="setting_header">
-                                <h2>Cài đặt</h2>
-                                <button type="button" className="setting_close" onClick={() => setShowSetting(false)}>
-                                    <i className="fa-solid fa-xmark"></i>
-                                </button>
-                            </div>
-                            <div className="setting_body">
-                                Nội dung cài đặt
-                            </div>
-                        </div>
-                    </div>
+                    <SettingDialog onClose={() => setShowSetting(false)} />
                 )}
                 {searchResult && (
                     <SearchUserModal user={searchResult} onClose={() => setSearchResult(null)}
@@ -383,7 +374,7 @@ function ConversationSidebar({username, loading, error, onLogout}: Props) {
             )}
             {showLogoutConfirm && (
                 <div className="setting_overlay" onClick={() => setShowLogoutConfirm(false)}>
-                    <div className="setting_dialog" onClick={(event) => event.stopPropagation()}>
+                    <div className="setting_dialog logout-form" onClick={(event) => event.stopPropagation()}>
                         <div className="setting_header">
                             <h2>Đăng xuất</h2>
                             <button type="button" className="logout_close" onClick={() => setShowLogoutConfirm(false)}>

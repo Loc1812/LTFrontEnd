@@ -4,6 +4,7 @@ import { useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { authService } from "../services/authService.ts";
 import { loginSuccess } from "../store/slice/AuthSlice";
+import "./login.css";
 function Login() {
     const [mode, setMode] = useState<"login" | "register">("login");
     const [username, setUsername] = useState("");
@@ -65,12 +66,12 @@ function Login() {
         setConfirmPassword("");
     };
     return (
-        <div className="container d-flex justify-content-center align-items-center min-vh-100">
-            <div className="card shadow p-4" style={{ width: "400px" }}>
-                <h2 style={{color: "black"}} className="text-center mb-4">
+        <div className="login_page">
+            <div className="card login_card">
+                <h2 className="login_title">
                     App Chat
                 </h2>
-                <div className="btn-group w-100 mb-4">
+                <div className="btn-group login_mode">
                     <button type="button" className={`btn ${mode === "login" ? "btn-primary" : "btn-outline-primary"}`}
                         onClick={() => changeMode("login")}
                         disabled={loading}>
@@ -82,7 +83,7 @@ function Login() {
                         Đăng ký
                     </button>
                 </div>
-                <h4 className="text-center mb-3">
+                <h4 className="login_heading text-center">
                     {mode === "login" ? "Đăng nhập" : "Đăng ký"}
                 </h4>
                 {error && (
@@ -95,7 +96,7 @@ function Login() {
                         {success}
                     </div>
                 )}
-                <form onSubmit={handleSubmit}>
+                <form className="login_form" onSubmit={handleSubmit}>
                     <div className="mb-3">
                         <label className="form-label">
                             Username
@@ -116,10 +117,10 @@ function Login() {
                                 Xác nhận mật khẩu
                             </label>
                             <input type="password" className="form-control" placeholder="Nhập lại mật khẩu" value={confirmPassword} required disabled={loading}
-                                   onChange={(event) => setConfirmPassword(event.target.value)}/>
+                                onChange={(event) => setConfirmPassword(event.target.value)}/>
                         </div>
                     )}
-                    <button type="submit" className="btn btn-success w-100" disabled={loading}>
+                    <button type="submit" className="btn btn-primary login_submit w-100" disabled={loading}>
                         {
                             loading ? "Đang xử lý..." : mode === "login" ? "Login" : "Register"
                         }
