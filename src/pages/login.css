@@ -43,6 +43,10 @@
     font-weight: 500;
 }
 
+.login_mode .btn:hover {
+    opacity: 0.6;
+}
+
 .login_heading {
     color: var(--app-text, #212529);
     font-size: 21px;

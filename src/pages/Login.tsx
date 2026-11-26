@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { authService } from "../services/authService.ts";
 import { loginSuccess } from "../store/slice/AuthSlice";
 import "./login.css";
+import { useTranslation } from "react-i18next";
 function Login() {
     const [mode, setMode] = useState<"login" | "register">("login");
     const [username, setUsername] = useState("");
@@ -15,6 +16,7 @@ function Login() {
     const [success, setSuccess] = useState("");
     const dispatch = useDispatch();
     const navigate = useNavigate();
+    const { t } = useTranslation();
     const handleSubmit = async (event: SyntheticEvent<HTMLFormElement>) => {
         event.preventDefault();
         setError("");
@@ -75,16 +77,16 @@ function Login() {
                     <button type="button" className={`btn ${mode === "login" ? "btn-primary" : "btn-outline-primary"}`}
                         onClick={() => changeMode("login")}
                         disabled={loading}>
-                        Đăng nhập
+                        {t("login")}
                     </button>
                     <button type="button" className={`btn ${mode === "register" ? "btn-primary" : "btn-outline-primary"}`}
                         onClick={() => changeMode("register")}
                         disabled={loading}>
-                        Đăng ký
+                        {t("register")}
                     </button>
                 </div>
                 <h4 className="login_heading text-center">
-                    {mode === "login" ? "Đăng nhập" : "Đăng ký"}
+                    {mode === "login" ? t("login") : t("register")}
                 </h4>
                 {error && (
                     <div className="alert alert-danger">
@@ -101,28 +103,28 @@ function Login() {
                         <label className="form-label">
                             Username
                         </label>
-                        <input type="text" className="form-control" placeholder="Nhập username" value={username} required disabled={loading}
+                        <input type="text" className="form-control" placeholder={t("enterUName")} value={username} required disabled={loading}
                             onChange={(event) => setUsername(event.target.value)}/>
                     </div>
                     <div className="mb-3">
                         <label className="form-label">
                             Password
                         </label>
-                        <input type="password" className="form-control" placeholder="Nhập password" value={password} required disabled={loading}
+                        <input type="password" className="form-control" placeholder={t("enterPass")} value={password} required disabled={loading}
                             onChange={(event) => setPassword(event.target.value)}/>
                     </div>
                     {mode === "register" && (
                         <div className="mb-3">
                             <label className="form-label">
-                                Xác nhận mật khẩu
+                                {t("confirmPass")}
                             </label>
-                            <input type="password" className="form-control" placeholder="Nhập lại mật khẩu" value={confirmPassword} required disabled={loading}
+                            <input type="password" className="form-control" placeholder={t("enterConfirmPass")} value={confirmPassword} required disabled={loading}
                                 onChange={(event) => setConfirmPassword(event.target.value)}/>
                         </div>
                     )}
                     <button type="submit" className="btn btn-primary login_submit w-100" disabled={loading}>
                         {
-                            loading ? "Đang xử lý..." : mode === "login" ? "Login" : "Register"
+                            loading ? t("processing") : mode === "login" ? "Login" : "Register"
                         }
                     </button>
                 </form>

@@ -47,7 +47,7 @@
 }
 
 .setting_close,
-.logout_close {
+.logout_close, .modal-content .btn-close{
     display: flex;
     align-items: center;
     justify-content: center;
@@ -62,7 +62,7 @@
 }
 
 .setting_close:hover,
-.logout_close:hover {
+.logout_close:hover, .modal-content .btn-close:hover {
     color: var(--danger);
     background: var(--app-hover-bg);
     transform: rotate(90deg);

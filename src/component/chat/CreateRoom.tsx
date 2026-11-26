@@ -1,6 +1,6 @@
 import {useEffect, useRef, useState, type ChangeEvent, type FormEvent} from "react";
 import {chatService} from "../../services/chatService";
-
+import { useTranslation } from "react-i18next";
 interface CreateRoomModalProps {
     onClose: () => void;
     onCreated: (roomName: string) => void;
@@ -18,7 +18,7 @@ function CreateRoom({onClose, onCreated}: CreateRoomModalProps) {
     const [error, setError] = useState("");
     const [submitting, setSubmitting] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
-
+    const { t } = useTranslation();
     useEffect(() => {
         inputRef.current?.focus();
     }, []);
@@ -65,15 +65,15 @@ function CreateRoom({onClose, onCreated}: CreateRoomModalProps) {
                 <div className="modal-dialog modal-dialog-centered modal-sm">
                     <form className="modal-content" onSubmit={handleSubmit} noValidate>
                         <div className="modal-header py-2">
-                            <h5 className="modal-title fs-6" id="create-room-title">Tạo phòng</h5>
+                            <h5 className="modal-title fs-6" id="create-room-title">{t("createRoom")}</h5>
                             <button type="button" className="btn-close" aria-label="Đóng" onClick={onClose}
                                     disabled={submitting}></button>
                         </div>
 
                         <div className="modal-body">
-                            <label htmlFor="create-room-name" className="form-label">Tên phòng</label>
+                            <label htmlFor="create-room-name" className="form-label">{t("roomName")}</label>
                             <input id="create-room-name" ref={inputRef} type="text" className={`form-control${error ? " is-invalid" : ""}`}
-                                   placeholder="Nhập tên phòng" autoComplete="off" value={name} readOnly={submitting} aria-invalid={error !== ""}
+                                   placeholder={t("enterRoomName")} autoComplete="off" value={name} readOnly={submitting} aria-invalid={error !== ""}
                                    aria-describedby={error ? "create-room-error" : undefined}
                                    onChange={(event: ChangeEvent<HTMLInputElement>) => {
                                        setName(event.target.value);
@@ -88,10 +88,10 @@ function CreateRoom({onClose, onCreated}: CreateRoomModalProps) {
 
                         <div className="modal-footer py-2">
                             <button type="button" className="btn btn-outline-secondary" onClick={onClose}
-                                    disabled={submitting}>Hủy
+                                    disabled={submitting}>{t("cancel")}
                             </button>
                             <button type="submit" className="btn btn-primary"
-                                    disabled={submitting}>{submitting ? "Đang tạo..." : "Tạo phòng"}</button>
+                                    disabled={submitting}>{submitting ? t("creating") + "..." : t("createRoom")}</button>
                         </div>
                     </form>
                 </div>
