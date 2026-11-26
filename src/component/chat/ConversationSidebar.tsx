@@ -5,6 +5,8 @@ import CreateRoomModal from "./CreateRoom";
 import SearchUserModal, {type SearchUserResult} from "./SearchUser";
 import {chatService} from "../../services/chatService";
 import {websocketService} from "../../services/websocket";
+import SettingDialog from "./SettingDialog";
+import { useTranslation } from "react-i18next";
 import {
     mergeConversations,
     setCurrentChat,
@@ -54,6 +56,7 @@ function ConversationSidebar({username, loading, error, onLogout}: Props) {
     const [showFrame, setShowFrame] = useState(false);
     const [showSetting, setShowSetting] = useState(false);
     const settingRef = useRef<HTMLDivElement>(null);
+    const { t } = useTranslation();
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (settingRef.current && !settingRef.current.contains(event.target as Node)) {
@@ -257,12 +260,12 @@ function ConversationSidebar({username, loading, error, onLogout}: Props) {
             <aside className="chat-sidebar">
                 <div className="sb-search">
                     <div className="input-group input-group-sm">
-                    <span className="input-group-text bg-light border-end-0">
+                    <span className="input-group-text border-end-0">
                         <i className="fa-solid fa-magnifying-glass text-secondary" aria-hidden="true"></i>
                     </span>
-                        <input type="text" className="form-control bg-light border-start-0"
-                               placeholder={groupMode ? "Tìm phòng" : "Tìm kiếm"}
-                               aria-label={groupMode ? "Tìm phòng" : "Tìm kiếm"} value={keyword}
+                        <input type="text" className="form-control border-start-0"
+                               placeholder={groupMode ? t("findRoom") : t("search")}
+                               aria-label={groupMode ? t("findRoom") : t("search")} value={keyword}
                                onChange={(event: ChangeEvent<HTMLInputElement>) => {
                                    setKeyword(event.target.value);
                                    if (searchError) setSearchError("");
@@ -280,12 +283,12 @@ function ConversationSidebar({username, loading, error, onLogout}: Props) {
                     <div className="form-check mb-0 ms-2 me-auto text-nowrap">
                         <input className="form-check-input" type="checkbox" id="sb-group-mode" checked={groupMode}
                                onChange={(event: ChangeEvent<HTMLInputElement>) => setGroupMode(event.target.checked)}/>
-                        <label className="form-check-label" htmlFor="sb-group-mode">Phòng</label>
+                        <label className="form-check-label" htmlFor="sb-group-mode">{t("room")}</label>
                     </div>
                     <button type="button" className="btn btn-sm btn-outline-secondary"
                             onClick={() => setShowCreateRoom(true)}>
                         <i className="fa-solid fa-plus me-1" aria-hidden="true"></i>
-                        Tạo phòng
+                        {t("createRoom")}
                     </button>
                     <button type="button" className="btn btn-sm btn-primary" aria-label="Tìm"
                             disabled={keyword.trim() === "" || searching} onClick={handleSearch}>
@@ -295,19 +298,19 @@ function ConversationSidebar({username, loading, error, onLogout}: Props) {
                     </button>
                 </div>
 
-                <div className="sb-list border bg-light rounded-3 p-2">
+                <div className="sb-list rounded-3">
                     {listError && (
                         <div className="alert alert-warning py-1 px-2 mb-2 small d-flex align-items-center justify-content-between gap-2"
                              role="alert">
                             <span>{listError}</span>
                             <button type="button" className="btn btn-sm btn-outline-secondary text-nowrap"
-                                    onClick={loadConversations}>Thử lại
+                                    onClick={loadConversations}>{t("tryAgain")}
                             </button>
                         </div>)}
                     {listLoading && conversations.length === 0 && (
                         <div className="text-center text-secondary small py-3" role="status">
                             <span className="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
-                            Đang tải danh sách...
+                            {t("loading")}...
                         </div>)}
                     {!listLoading && !listError && conversations.length === 0 && (
                         <div className="text-center text-secondary small py-3">Chưa có cuộc trò chuyện nào.</div>)}
@@ -329,14 +332,14 @@ function ConversationSidebar({username, loading, error, onLogout}: Props) {
                         {showFrame && (
                             <div className="setting_frame">
                                 <button type="button" className="setting_option" onClick={() => setShowSetting(true)}>
-                                    <span>Cài đặt</span>
+                                    <span>{t("setting")}</span>
                                 </button>
                                 <button type="button" className="btn btn-sm btn-danger" onClick={() => {
                                     setShowFrame(false);
                                     setShowLogoutConfirm(true);
                                 }} disabled={loading}>
                                     <i className="fa-solid fa-right-from-bracket me-1"></i>
-                                    <span>Đăng xuất</span>
+                                    <span> {t("logout")}</span>
                                 </button>
                             </div>
                         )}
@@ -348,26 +351,14 @@ function ConversationSidebar({username, loading, error, onLogout}: Props) {
                     )}
                     <div className="d-flex align-items-center justify-content-between">
                     <span className="text-truncate">
-                        Xin chào, <b>{username}</b>
+                        {t("hello")}, <b>{username}</b>
                     </span>
                     </div>
                 </div>
                 {showCreateRoom && (
                     <CreateRoomModal onClose={() => setShowCreateRoom(false)} onCreated={handleRoomCreated}/>)}
                 {showSetting && (
-                    <div className="setting_overlay" onClick={() => setShowSetting(false)}>
-                        <div className="setting_dialog" onClick={(event) => event.stopPropagation()}>
-                            <div className="setting_header">
-                                <h2>Cài đặt</h2>
-                                <button type="button" className="setting_close" onClick={() => setShowSetting(false)}>
-                                    <i className="fa-solid fa-xmark"></i>
-                                </button>
-                            </div>
-                            <div className="setting_body">
-                                Nội dung cài đặt
-                            </div>
-                        </div>
-                    </div>
+                    <SettingDialog onClose={() => setShowSetting(false)} />
                 )}
                 {searchResult && (
                     <SearchUserModal user={searchResult} onClose={() => setSearchResult(null)}
@@ -377,34 +368,34 @@ function ConversationSidebar({username, loading, error, onLogout}: Props) {
                 <div className="loading_overlay">
                     <div className="loading_box">
                         <div className="loading_spinner"></div>
-                        <span>Đang xử lý</span>
+                        <span>{t("processing")}</span>
                     </div>
                 </div>
             )}
             {showLogoutConfirm && (
                 <div className="setting_overlay" onClick={() => setShowLogoutConfirm(false)}>
-                    <div className="setting_dialog" onClick={(event) => event.stopPropagation()}>
+                    <div className="setting_dialog logout-form" onClick={(event) => event.stopPropagation()}>
                         <div className="setting_header">
-                            <h2>Đăng xuất</h2>
+                            <h2>{t("logout")}</h2>
                             <button type="button" className="logout_close" onClick={() => setShowLogoutConfirm(false)}>
                                 <i className="fa-solid fa-xmark"></i>
                             </button>
                         </div>
                         <div className="setting_body">
                             <p className="mb-4">
-                                Bạn có chắc chắn muốn đăng xuất?
+                                {t("confirmLogout")}
                             </p>
                             <div className="d-flex justify-content-end gap-2">
                                 <button type="button" className="btn btn-sm btn-outline-secondary"
                                         onClick={() => setShowLogoutConfirm(false)}>
-                                    Hủy
+                                    {t("cancel")}
                                 </button>
                                 <button type="button" className="btn btn-sm btn-danger" onClick={() => {
                                     setShowLogoutConfirm(false);
                                     onLogout();
                                 }}>
                                     <i className="fa-solid fa-right-from-bracket me-1"></i>
-                                    Đăng xuất
+                                    {t("logout")}
                                 </button>
                             </div>
                         </div>

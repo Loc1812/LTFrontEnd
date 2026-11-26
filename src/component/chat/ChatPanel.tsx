@@ -4,21 +4,21 @@ import type { RootState } from "../../store/Store";
 import {addMessage, setCurrentChat, setLoading, setMessages} from "../../store/slice/ChatSlice";
 import { chatService } from "../../services/chatService";
 import { websocketService } from "../../services/websocket";
-
+import { useTranslation } from "react-i18next";
 function ChatPanel() {
     const dispatch = useDispatch();
     const username = useSelector((state: RootState) => state.auth.username);
     const messages = useSelector((state: RootState) => state.chat.messages);
     const currentChat = useSelector((state: RootState) => state.chat.currentChat);
     const loading = useSelector((state: RootState) => state.chat.loading);
-
+    const { t } = useTranslation();
     const [receiver, setReceiver] = useState("");
     const [messageInput, setMessageInput] = useState("");
     const [checking, setChecking] = useState(false);
     const [sending, setSending] = useState(false);
     const [error, setError] = useState("");
     const [isOnline, setIsOnline] = useState<boolean | null>(null);
-
+    const [showVoiceDialog, setShowVoiceDialog] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -178,7 +178,7 @@ function ChatPanel() {
         <main className="chat-main">
             <header className="chat-header">
                 <div>
-                    <h3>{currentChat || "Chat cá nhân"}</h3>
+                    <h3>{currentChat || t("nonSelect")}</h3>
 
                     {currentChat && (
                         <span className={`online-status ${
@@ -189,9 +189,9 @@ function ChatPanel() {
                                     : ""
                         }`}>
                             {isOnline === true
-                                ? "● Đang online"
+                                ? t("online")
                                 : isOnline === false
-                                    ? "● Đang offline"
+                                    ? "● " + t("offline")
                                     : "● Chưa xác định"}
                         </span>
                     )}
@@ -204,11 +204,11 @@ function ChatPanel() {
 
             <section className="chat-messages">
                 {!currentChat ? (
-                    <p>Chưa chọn người chat.</p>
+                    <p>{t("plsSelect")}</p>
                 ) : loading ? (
-                    <p>Đang tải tin nhắn...</p>
+                    <p>{t("loadingMes")}...</p>
                 ) : messages.length === 0 ? (
-                    <p>Chưa có tin nhắn.</p>
+                    <p>{t("noMes")}</p>
                 ) : (
                     messages.map((message, index) => (
                         <div key={message.id ?? index}
@@ -227,9 +227,40 @@ function ChatPanel() {
 
             {currentChat && (
                 <form className="message-input-form" onSubmit={handleSendMessage}>
-                    <input value={messageInput} onChange={(e) => setMessageInput(e.target.value)} placeholder="Nhập tin nhắn..." disabled={sending}/>
-                    <button type="submit" disabled={!messageInput.trim() || sending}>Gửi</button>
+                    <input value={messageInput} onChange={(e) => setMessageInput(e.target.value)} placeholder={t("enterMes")} disabled={sending}/>
+                    <button type="button" className="voice-button" title="Ghi âm tin nhắn" aria-label="Ghi âm tin nhắn" onClick={() => setShowVoiceDialog(true)} disabled={sending}>
+                        <i className="fa-solid fa-microphone"></i>
+                    </button>
+                    <button type="submit" disabled={!messageInput.trim() || sending}>{t("send")}</button>
                 </form>
+            )}
+            {showVoiceDialog && (
+                <div className="voice-dialog-overlay" onMouseDown={(event) => {
+                        if (event.target === event.currentTarget) {
+                            setShowVoiceDialog(false);
+                        }
+                    }}>
+                    <div className="voice-dialog" role="dialog" aria-modal="true" aria-labelledby="voice-dialog-title">
+                        <div className="voice-dialog-header">
+                            <h4 id="voice-dialog-title">Ghi âm tin nhắn</h4>
+                            <button type="button" className="voice-dialog-close" aria-label="Đóng" onClick={() => setShowVoiceDialog(false)}>
+                                <i className="fa-solid fa-xmark"></i>
+                            </button>
+                        </div>
+                        <div className="voice-dialog-body">
+                            <div className="voice-microphone">
+                                <i className="fa-solid fa-microphone"></i>
+                            </div>
+                            <h5>Đang ghi âm...</h5>
+                            <p>Chức năng nhận diện giọng nói sẽ được tích hợp sau.</p>
+                        </div>
+                        <div className="voice-dialog-footer">
+                            <button type="button" onClick={() => setShowVoiceDialog(false)}>
+                                {t("cancel")}
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
         </main>
     );

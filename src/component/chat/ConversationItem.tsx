@@ -22,7 +22,7 @@ function ConversationItem({conversation}: ConversationItemProps) {
     const isRoom = conversation.type === "room";
 
     return (
-        <button type="button" className="sb-conv w-100 d-flex align-items-center gap-2 text-start border rounded-3 p-2">
+        <button type="button" className="sb-conv w-100 d-flex align-items-center gap-2 text-start rounded-3 p-2">
             <span className={`sb-avatar ${isRoom ? "sb-avatar--room" : "sb-avatar--people"} d-flex align-items-center justify-content-center rounded-circle`} aria-hidden="true">
                 <i className={`fa-solid ${isRoom ? "fa-users" : "fa-user"} fs-5`}></i>
             </span>

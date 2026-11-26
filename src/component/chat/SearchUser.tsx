@@ -1,5 +1,5 @@
 import {useEffect} from "react";
-
+import { useTranslation } from "react-i18next";
 export interface SearchUserResult {
     name: string;
     // true: online, false: offline, null: chưa xác định được trạng thái
@@ -13,6 +13,7 @@ interface SearchUserModalProps {
 }
 
 function SearchUser({user, onClose, onMessage}: SearchUserModalProps) {
+    const { t } = useTranslation();
     useEffect(() => {
         const handleKeyDown = (event: KeyboardEvent) => {
             if (event.key === "Escape") onClose();
@@ -23,9 +24,9 @@ function SearchUser({user, onClose, onMessage}: SearchUserModalProps) {
 
     const statusClass = user.online === true ? "online" : user.online === false ? "offline" : "";
     const statusText = user.online === true
-        ? "● Đang online"
+        ? "● " + t("online")
         : user.online === false
-            ? "● Đang offline"
+            ? "● " + t("offline")
             : "● Chưa xác định";
 
     return (
@@ -40,7 +41,9 @@ function SearchUser({user, onClose, onMessage}: SearchUserModalProps) {
                 <div className="modal-dialog modal-dialog-centered modal-sm">
                     <div className="modal-content">
                         <div className="modal-header border-0 pb-0 justify-content-end">
-                            <button type="button" className="btn-close" aria-label="Đóng" onClick={onClose}></button>
+                            <button type="button" className="btn-close" aria-label="Đóng" onClick={onClose}>
+                                <i className="fa-solid fa-xmark"></i>
+                            </button>
                         </div>
 
                         <div className="modal-body text-center pt-0">
@@ -56,7 +59,7 @@ function SearchUser({user, onClose, onMessage}: SearchUserModalProps) {
                             <button type="button" className="btn btn-primary" autoFocus
                                     onClick={() => onMessage(user.name)}>
                                 <i className="fa-solid fa-comment me-1" aria-hidden="true"></i>
-                                Nhắn tin
+                                {t("texting")}
                             </button>
                         </div>
                     </div>
