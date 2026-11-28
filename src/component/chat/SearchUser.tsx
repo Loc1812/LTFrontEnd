@@ -2,7 +2,6 @@ import {useEffect} from "react";
 import { useTranslation } from "react-i18next";
 export interface SearchUserResult {
     name: string;
-    // true: online, false: offline, null: chưa xác định được trạng thái
     online: boolean | null;
 }
 
@@ -27,7 +26,7 @@ function SearchUser({user, onClose, onMessage}: SearchUserModalProps) {
         ? "● " + t("online")
         : user.online === false
             ? "● " + t("offline")
-            : "● Chưa xác định";
+            : "● " + t("unknownStatus");
 
     return (
         <>

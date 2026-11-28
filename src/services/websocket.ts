@@ -1,4 +1,5 @@
 import type {ServerMessage, ConnectionStatus} from "../types/websocket";
+import i18n from "../i18n";
 class WebSocketService {
     private socket: WebSocket | null = null;
     private listeners: Map<string, ((message: ServerMessage) => void)[]> = new Map();
@@ -14,17 +15,17 @@ class WebSocketService {
             return this.connectPromise!;
         }
         if (this.socket?.readyState === WebSocket.CLOSING) {
-            return Promise.reject(new Error("WebSocket is closing."));
+            return Promise.reject(new Error(i18n.t("errWsClosing")));
         }
         const url = import.meta.env.VITE_WS_URL;
         if (!url) {
-            return Promise.reject(new Error("VITE_WS_URL is not configured."));
+            return Promise.reject(new Error(i18n.t("errWsUrlNotConfigured")));
         }
         let socket: WebSocket;
         try {
             socket = new WebSocket(url);
         } catch (error) {
-            return Promise.reject(error instanceof Error ? error : new Error("Cannot create WebSocket."));
+            return Promise.reject(error instanceof Error ? error : new Error(i18n.t("errWsCannotCreate")));
         }
         this.socket = socket;
         this.notifyStatus("CONNECTING");
@@ -49,7 +50,7 @@ class WebSocketService {
             }
         };
         timeout = window.setTimeout(() => {
-            finish(new Error("WebSocket connection timeout."));
+            finish(new Error(i18n.t("errWsConnectionTimeout")));
             socket.close();
         }, this.CONNECT_TIMEOUT);
         socket.onopen = () => {
@@ -68,7 +69,7 @@ class WebSocketService {
                     event.data
                 );
                 if (!message || typeof message !== "object" || typeof message.event !== "string" || !["success", "error"].includes(message.status)) {
-                    throw new Error("Invalid message format.");
+                    throw new Error(i18n.t("errWsInvalidMessage"));
                 }
                 this.dispatch(message);
             } catch (error) {
@@ -79,14 +80,14 @@ class WebSocketService {
             if (this.socket !== socket) return;
             this.notifyStatus("ERROR");
             if (!hasOpened) {
-                finish(new Error("WebSocket connection error."));
+                finish(new Error(i18n.t("errWsConnectionFailed")));
             }
             socket.close();
         };
         socket.onclose = () => {
             if (this.socket !== socket) return;
             if (!hasOpened) {
-                finish(new Error("WebSocket closed before connection was established."));
+                finish(new Error(i18n.t("errWsClosedBeforeConnect")));
             }
             this.socket = null;
             this.connectPromise = null;
@@ -96,7 +97,7 @@ class WebSocketService {
     }
     send(event: string, data?: unknown): void {
         if (!this.isConnected()) {
-            throw new Error("WebSocket is not connected.");
+            throw new Error(i18n.t("errWsNotConnectedYet"));
         }
         const message = {
             action: "onchat",

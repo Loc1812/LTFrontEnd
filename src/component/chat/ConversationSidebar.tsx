@@ -26,16 +26,18 @@ interface Props {
 }
 
 function toSearchErrorText(error: unknown): string {
+    const { t } = useTranslation();
     const text = error instanceof Error ? error.message.trim() : "";
-    if (!text) return "Không thể tìm kiếm, vui lòng thử lại.";
-    if (/timeout$/i.test(text)) return "Máy chủ không phản hồi, vui lòng thử lại.";
+    if (!text) return t("errCannotFind");
+    if (/timeout$/i.test(text)) return t("errSvNotResp");
     return text;
 }
 
 function toListErrorText(error: unknown): string {
+    const { t } = useTranslation();
     const text = error instanceof Error ? error.message.trim() : "";
-    if (!text) return "Không thể tải danh sách trò chuyện.";
-    if (/timeout$/i.test(text)) return "Máy chủ không phản hồi, không tải được danh sách trò chuyện.";
+    if (!text) return t("errLoadListConv");
+    if (/timeout$/i.test(text)) return t("errLoadListConvSvNotRes");
     return text;
 }
 
@@ -127,12 +129,12 @@ function ConversationSidebar({username, loading, error, onLogout}: Props) {
             }
         });
     }, [username, dispatch]);
+
     const openPeopleChat = async (target: string) => {
         if (!websocketService.isConnected()) {
-            setSearchError("WebSocket chưa kết nối.");
+            setSearchError(t("errConnWebSK"));
             return;
         }
-
         const seq = ++selectSeq.current;
 
         setSearchError("");
@@ -186,11 +188,11 @@ function ConversationSidebar({username, loading, error, onLogout}: Props) {
             }));
             revealType("room");
             setKeyword("");
-            setSearchNotice(`Đã tham gia phòng "${joinedName}".`);
+            setSearchNotice(`${t("joinedRoom")} "${joinedName}".`);
         } catch (err) {
             const text = err instanceof Error ? err.message : "";
             setSearchError(/room not found/i.test(text)
-                ? `Không tìm thấy phòng "${roomName}".`
+                ? `${t("roomNotFound")} "${roomName}".`
                 : toSearchErrorText(err));
         } finally {
             setSearching(false);
@@ -202,7 +204,7 @@ function ConversationSidebar({username, loading, error, onLogout}: Props) {
         if (!target || searching) return;
 
         if (!websocketService.isConnected()) {
-            setSearchError("WebSocket chưa kết nối.");
+            setSearchError(t("errConnWebSK"));
             setSearchNotice("");
             return;
         }
@@ -211,7 +213,7 @@ function ConversationSidebar({username, loading, error, onLogout}: Props) {
             return;
         }
         if (target === username) {
-            setSearchError("Bạn không thể tự chat với chính mình.");
+            setSearchError(t("errCanChatYourSelf"));
             setSearchNotice("");
             return;
         }
@@ -222,7 +224,7 @@ function ConversationSidebar({username, loading, error, onLogout}: Props) {
         try {
             const exists = await chatService.checkUserExist(target);
             if (!exists) {
-                setSearchError(`Không tìm thấy người dùng "${target}".`);
+                setSearchError(`${t("errNoUserFound")} "${target}".`);
                 return;
             }
 
@@ -239,6 +241,7 @@ function ConversationSidebar({username, loading, error, onLogout}: Props) {
             setSearching(false);
         }
     };
+
     const handleStartChat = async (target: string) => {
         setSearchResult(null);
         revealType("people");
@@ -317,7 +320,7 @@ function ConversationSidebar({username, loading, error, onLogout}: Props) {
                             {t("loading")}...
                         </div>)}
                     {!listLoading && !listError && conversations.length === 0 && (
-                        <div className="text-center text-secondary small py-3">Chưa có cuộc trò chuyện nào.</div>)}
+                        <div className="text-center text-secondary small py-3">{t("noConv")}</div>)}
                     {!listLoading && !listError && conversations.length > 0 && visibleConversations.length === 0 && (
                         <div className="text-center text-secondary small py-3">
                             {filter === "people" ? t("noPeople") : t("noRoom")}
