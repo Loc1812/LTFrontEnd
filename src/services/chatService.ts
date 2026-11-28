@@ -134,7 +134,7 @@ class ChatService {
         return websocketService.subscribe(
             "SEND_CHAT",
             (message: ServerMessage) => {
-                console.log("[chat-debug] frame SEND_CHAT thô:", message); // log tạm, xóa sau khi xác nhận chạy đúng
+                console.log("[chat-debug] frame SEND_CHAT thô:", message);
                 if (message.status !== "success") return;
 
                 try {

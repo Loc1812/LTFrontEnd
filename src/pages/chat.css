@@ -55,6 +55,41 @@
   flex: none;
 }
 
+.sb-filter {
+  display: flex;
+  flex: none;
+  gap: 4px;
+}
+
+.sb-filter__btn {
+  flex: 1;
+  min-width: 0;
+  padding: 3px 8px;
+  color: var(--app-text-secondary);
+  font: inherit;
+  font-weight: 600;
+  background: transparent;
+  border: 1px solid var(--app-border);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.sb-filter__btn:hover {
+  color: var(--app-text);
+  background: var(--app-hover-bg);
+}
+
+.sb-filter__btn.is-active {
+  color: var(--bs-primary, #0d6efd);
+  background: var(--app-active-bg);
+  border-color: var(--bs-primary, #0d6efd);
+}
+
+.sb-filter__btn:focus-visible {
+  outline: 2px solid var(--bs-primary, #0d6efd);
+  outline-offset: 2px;
+}
+
 .sb-list {
   display: flex;
   flex: 1;

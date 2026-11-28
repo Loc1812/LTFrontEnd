@@ -1,6 +1,6 @@
 import {useState, useEffect, useRef, useCallback, type ChangeEvent, type KeyboardEvent} from "react";
-import {useDispatch, useSelector} from "react-redux";
-import ConversationItem from "./ConversationItem";
+import {useDispatch, useSelector, useStore} from "react-redux";
+import ConversationItem, {type ConversationType} from "./ConversationItem";
 import CreateRoomModal from "./CreateRoom";
 import SearchUserModal, {type SearchUserResult} from "./SearchUser";
 import {chatService} from "../../services/chatService";
@@ -8,13 +8,20 @@ import {websocketService} from "../../services/websocket";
 import SettingDialog from "./SettingDialog";
 import { useTranslation } from "react-i18next";
 import {
+    appendChatMessage,
+    beginChatHistoryLoad,
+    cancelChatHistoryLoad,
+    chatKey,
+    clearAllMessages,
     mergeConversations,
+    setChatHistory,
     setCurrentChat,
     setLoading,
-    setMessages,
     upsertConversation
 } from "../../store/slice/ChatSlice";
 import type {RootState} from "../../store/Store";
+
+type ConversationFilter = "all" | ConversationType;
 
 interface Props {
     username: string | null;
@@ -41,6 +48,7 @@ function toListErrorText(error: unknown): string {
 
 function ConversationSidebar({username, loading, error, onLogout}: Props) {
     const dispatch = useDispatch();
+    const store = useStore<RootState>();
     const [keyword, setKeyword] = useState("");
     const [searching, setSearching] = useState(false);
     const [searchError, setSearchError] = useState("");
@@ -48,11 +56,22 @@ function ConversationSidebar({username, loading, error, onLogout}: Props) {
     const [searchResult, setSearchResult] = useState<SearchUserResult | null>(null);
     const [groupMode, setGroupMode] = useState(false);
     const conversations = useSelector((state: RootState) => state.chat.conversations);
+    const [filter, setFilter] = useState<ConversationFilter>("all");
+    const visibleConversations = filter === "all"
+        ? conversations
+        : conversations.filter((conversation) => conversation.type === filter);
+    const revealType = (type: ConversationType) => {
+        setFilter((current) => (current === "all" || current === type ? current : "all"));
+    };
     const reLoginCode = useSelector((state: RootState) => state.auth.reLoginCode);
     const [listLoading, setListLoading] = useState(true);
     const [listError, setListError] = useState("");
     const loadSeq = useRef(0);
     const selectSeq = useRef(0);
+    const historyRequests = useRef(new Map<string, Promise<void>>());
+    const historyEpoch = useRef(0);
+    const historyQueue = useRef<Promise<unknown>>(Promise.resolve());
+    const openPeopleChatRef = useRef<(target: string) => Promise<void>>(async () => {});
     const [showCreateRoom, setShowCreateRoom] = useState(false);
     const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
     const [showFrame, setShowFrame] = useState(false);
@@ -107,6 +126,7 @@ function ConversationSidebar({username, loading, error, onLogout}: Props) {
             }));
 
             if (message.receiver === username && message.sender !== username) {
+                dispatch(appendChatMessage({key: chatKey("people", message.sender), message}));
                 fromPerson();
             } else if (message.type === 1) {
                 dispatch(upsertConversation({
@@ -120,9 +140,36 @@ function ConversationSidebar({username, loading, error, onLogout}: Props) {
             }
         });
     }, [username, dispatch]);
+    const loadPeopleHistory = (target: string): Promise<void> => {
+        const key = chatKey("people", target);
+        const running = historyRequests.current.get(key);
+        if (running) return running;
+
+        const epoch = historyEpoch.current;
+        dispatch(beginChatHistoryLoad(key));
+        const request: Promise<void> = historyQueue.current
+            .then(() => chatService.getPeopleChatMessages(target, 1))
+            .then((history) => {
+                if (!history.every((item) => item.sender === target || item.receiver === target)) {
+                    throw new Error("Phản hồi lịch sử không khớp cuộc trò chuyện.");
+                }
+                if (epoch === historyEpoch.current) dispatch(setChatHistory({key, messages: history}));
+            })
+            .catch((err) => {
+                if (epoch === historyEpoch.current) dispatch(cancelChatHistoryLoad(key));
+                throw err;
+            })
+            .finally(() => {
+                if (historyRequests.current.get(key) === request) historyRequests.current.delete(key);
+            });
+        historyRequests.current.set(key, request);
+        historyQueue.current = request.catch(() => undefined);
+        return request;
+    };
 
     const openPeopleChat = async (target: string) => {
-        if (!websocketService.isConnected()) {
+        const stored = store.getState().chat.messagesByChat[chatKey("people", target)] !== undefined;
+        if (!stored && !websocketService.isConnected()) {
             setSearchError(t("errConnWebSK"));
             return;
         }
@@ -130,14 +177,14 @@ function ConversationSidebar({username, loading, error, onLogout}: Props) {
 
         setSearchError("");
         dispatch(setCurrentChat(target));
-        dispatch(setMessages([]));
-        dispatch(setLoading(true));
+        if (stored) {
+            dispatch(setLoading(false));
+            return;
+        }
 
+        dispatch(setLoading(true));
         try {
-            const history = await chatService.getPeopleChatMessages(target, 1);
-            if (seq === selectSeq.current) {
-                dispatch(setMessages(history));
-            }
+            await loadPeopleHistory(target);
         } catch (err) {
             if (seq === selectSeq.current) {
                 setSearchError(toSearchErrorText(err));
@@ -148,6 +195,20 @@ function ConversationSidebar({username, loading, error, onLogout}: Props) {
             }
         }
     };
+
+    useEffect(() => {
+        openPeopleChatRef.current = openPeopleChat;
+    });
+    useEffect(() => {
+        if (!username || !reLoginCode) return;
+        historyEpoch.current++;
+        historyRequests.current.clear();
+        historyQueue.current = Promise.resolve();
+        dispatch(clearAllMessages());
+        const current = store.getState().chat.currentChat;
+        if (current) openPeopleChatRef.current(current);
+    }, [username, reLoginCode, dispatch, store]);
+
     const handleSelectConversation = async (conversation: typeof conversations[number]) => {
         if (conversation.type !== "people") return;
         await openPeopleChat(conversation.name);
@@ -160,6 +221,7 @@ function ConversationSidebar({username, loading, error, onLogout}: Props) {
             type: "room",
             lastMessageAt: new Date().toISOString()
         }));
+        revealType("room");
         setShowCreateRoom(false);
     };
 
@@ -175,6 +237,7 @@ function ConversationSidebar({username, loading, error, onLogout}: Props) {
                 type: "room",
                 lastMessageAt: new Date().toISOString()
             }));
+            revealType("room");
             setKeyword("");
             setSearchNotice(`${t("joinedRoom")} "${joinedName}".`);
         } catch (err) {
@@ -229,9 +292,9 @@ function ConversationSidebar({username, loading, error, onLogout}: Props) {
             setSearching(false);
         }
     };
-
     const handleStartChat = async (target: string) => {
         setSearchResult(null);
+        revealType("people");
         dispatch(upsertConversation({
             id: `people-${target}`,
             name: target,
@@ -284,6 +347,14 @@ function ConversationSidebar({username, loading, error, onLogout}: Props) {
                     </button>
                 </div>
 
+                <div className="sb-filter" role="group" aria-label={t("filterConversations")}>
+                    {([["all", t("all")], ["people", t("people")], ["room", t("room")]] as [ConversationFilter, string][]).map(([key, label]) => (
+                        <button key={key} type="button" className={`sb-filter__btn${filter === key ? " is-active" : ""}`}
+                                aria-pressed={filter === key} onClick={() => setFilter(key)}>
+                            {label}
+                        </button>))}
+                </div>
+
                 <div className="sb-list rounded-3">
                     {listError && (
                         <div className="alert alert-warning py-1 px-2 mb-2 small d-flex align-items-center justify-content-between gap-2"
@@ -300,7 +371,11 @@ function ConversationSidebar({username, loading, error, onLogout}: Props) {
                         </div>)}
                     {!listLoading && !listError && conversations.length === 0 && (
                         <div className="text-center text-secondary small py-3">{t("noConv")}</div>)}
-                    {conversations.map((conversation) => (
+                    {!listLoading && !listError && conversations.length > 0 && visibleConversations.length === 0 && (
+                        <div className="text-center text-secondary small py-3">
+                            {filter === "people" ? t("noPeople") : t("noRoom")}
+                        </div>)}
+                    {visibleConversations.map((conversation) => (
                         <div key={conversation.id} className="conversation-clickable"
                              onClick={() => handleSelectConversation(conversation)}>
                             <ConversationItem conversation={conversation}/>

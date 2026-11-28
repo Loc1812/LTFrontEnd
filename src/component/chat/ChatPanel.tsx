@@ -1,7 +1,17 @@
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import type { RootState } from "../../store/Store";
-import {addMessage, setCurrentChat, setLoading, setMessages} from "../../store/slice/ChatSlice";
+import {
+    appendChatMessage,
+    beginChatHistoryLoad,
+    cancelChatHistoryLoad,
+    chatKey,
+    setChatHistory,
+    setCurrentChat,
+    setLoading,
+    upsertConversation,
+    type ChatMessage
+} from "../../store/slice/ChatSlice";
 import { chatService } from "../../services/chatService";
 import { websocketService } from "../../services/websocket";
 import { useTranslation } from "react-i18next";
@@ -36,11 +46,16 @@ interface SpeechRecognitionWindow extends Window {
     SpeechRecognition?: new () => SpeechRecognitionLike;
     webkitSpeechRecognition?: new () => SpeechRecognitionLike;
 }
+const EMPTY_MESSAGES: ChatMessage[] = [];
+
 function ChatPanel() {
     const dispatch = useDispatch();
     const username = useSelector((state: RootState) => state.auth.username);
-    const messages = useSelector((state: RootState) => state.chat.messages);
     const currentChat = useSelector((state: RootState) => state.chat.currentChat);
+    const storedMessages = useSelector((state: RootState) =>
+        currentChat ? state.chat.messagesByChat[chatKey("people", currentChat)] : undefined
+    );
+    const messages = storedMessages ?? EMPTY_MESSAGES;
     const loading = useSelector((state: RootState) => state.chat.loading);
     const { t } = useTranslation();
     const [receiver, setReceiver] = useState("");
@@ -57,26 +72,25 @@ function ChatPanel() {
     const [isRecording, setIsRecording] = useState(false);
     const [voiceError, setVoiceError] = useState("");
     const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
-    useEffect(() => {
+    const lastScrollRef = useRef<{ chat: string | null; count: number }>({
+        chat: null,
+        count: 0
+    });
+
+    useLayoutEffect(() => {
+        const last = lastScrollRef.current;
+        const jump = last.chat !== currentChat || last.count === 0;
+
         messagesEndRef.current?.scrollIntoView({
-            behavior: "smooth"
-        });
-    }, [messages]);
-
-    useEffect(() => {
-        if (!username || !currentChat) return;
-
-        const unsubscribe = chatService.subscribeMessages((message) => {
-            if (
-                message.sender === currentChat &&
-                message.receiver === username
-            ) {
-                dispatch(addMessage(message));
-            }
+            behavior: jump ? "auto" : "smooth",
+            block: "end"
         });
 
-        return unsubscribe;
-    }, [username, currentChat, dispatch]);
+        lastScrollRef.current = {
+            chat: currentChat,
+            count: messages.length
+        };
+    }, [messages, currentChat]);
 
     useEffect(() => {
         setIsOnline(null);
@@ -146,12 +160,18 @@ function ChatPanel() {
                 return;
             }
 
+            const key = chatKey("people", target);
             dispatch(setCurrentChat(target));
             dispatch(setLoading(true));
+            dispatch(beginChatHistoryLoad(key));
 
-            const history = await chatService.getPeopleChatMessages(target, 1);
-
-            dispatch(setMessages(history));
+            try {
+                const history = await chatService.getPeopleChatMessages(target, 1);
+                dispatch(setChatHistory({ key, messages: history }));
+            } catch (loadError) {
+                dispatch(cancelChatHistoryLoad(key));
+                throw loadError;
+            }
 
         } catch (err) {
             setError(
@@ -185,16 +205,26 @@ function ChatPanel() {
 
             chatService.sendPeopleMessage(currentChat, content);
 
-            dispatch(addMessage({
-                id: `local-${Date.now()}`,
-                sender: username,
-                receiver: currentChat,
-                content,
-                time: new Date().toLocaleTimeString("vi-VN", {
-                    hour: "2-digit",
-                    minute: "2-digit"
-                }),
-                type: 0
+            dispatch(appendChatMessage({
+                key: chatKey("people", currentChat),
+                message: {
+                    id: `local-${Date.now()}`,
+                    sender: username,
+                    receiver: currentChat,
+                    content,
+                    time: new Date().toLocaleTimeString("vi-VN", {
+                        hour: "2-digit",
+                        minute: "2-digit"
+                    }),
+                    type: 0
+                }
+            }));
+
+            dispatch(upsertConversation({
+                id: `people-${currentChat}`,
+                name: currentChat,
+                type: "people",
+                lastMessageAt: new Date().toISOString()
             }));
 
             setMessageInput("");
@@ -342,14 +372,14 @@ function ChatPanel() {
             <section className="chat-messages">
                 {!currentChat ? (
                     <p>{t("plsSelect")}</p>
-                ) : loading ? (
+                ) : storedMessages === undefined && loading ? (
                     <p>{t("loadingMes")}...</p>
                 ) : messages.length === 0 ? (
                     <p>{t("noMes")}</p>
                 ) : (
                     messages.map((message, index) => (
-                        <div key={message.id ?? index}
-                            className={`message-row ${message.sender === username ? "message-mine" : "message-theirs"}`}>
+                        <div key={`${index}-${message.id ?? ""}`}
+                             className={`message-row ${message.sender === username ? "message-mine" : "message-theirs"}`}>
                             <div className="message-bubble">
                                 <div className="message-content">{message.content}</div>
                                 {message.time && (
