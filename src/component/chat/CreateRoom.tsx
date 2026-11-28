@@ -7,9 +7,10 @@ interface CreateRoomModalProps {
 }
 
 function toErrorText(error: unknown): string {
+    const { t } = useTranslation();
     const text = error instanceof Error ? error.message.trim() : "";
-    if (!text) return "Không thể tạo phòng, vui lòng thử lại.";
-    if (/timeout$/i.test(text)) return "Máy chủ không phản hồi, vui lòng thử lại.";
+    if (!text) return t("errCreateRoom");
+    if (/timeout$/i.test(text)) return t("errSvNotResp");
     return text;
 }
 
@@ -40,7 +41,7 @@ function CreateRoom({onClose, onCreated}: CreateRoomModalProps) {
         if (submitting) return;
         const roomName = name.trim();
         if (!roomName) {
-            askRetype("Vui lòng nhập tên phòng.");
+            askRetype(t("plsEnRoomName"));
             return;
         }
 

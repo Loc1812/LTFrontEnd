@@ -23,16 +23,16 @@ function Login() {
         setSuccess("");
         if (loading) return;
         if (mode === "register" && !/^[a-zA-Z0-9_]+$/.test(username)) {
-            setError("Username chỉ được chứa chữ cái, chữ số và dấu gạch dưới.");
+            setError(t("errInvalidUsername"));
             return;
         }
         if (mode === "register") {
             if (password.length < 8) {
-                setError("Mật khẩu phải có ít nhất 8 ký tự.");
+                setError(t("errPasswordLength"));
                 return;
             }
             if (password !== confirmPassword) {
-                setError("Mật khẩu nhập lại không khớp.");
+                setError(t("errPasswordMismatch"));
                 return;
             }
         }
@@ -45,7 +45,7 @@ function Login() {
                 navigate("/chat");
             } else {
                 await authService.register(username, password);
-                setSuccess("Đăng ký thành công! Hãy đăng nhập.");
+                setSuccess(t("registerSuccess"));
                 setMode("login");
                 setPassword("");
                 setConfirmPassword("");
@@ -54,7 +54,7 @@ function Login() {
             if (error instanceof Error) {
                 setError(error.message);
             } else {
-                setError("Đã xảy ra lỗi không xác định.");
+                setError(t("errUnknown"));
             }
         } finally {
             setLoading(false);
@@ -101,14 +101,14 @@ function Login() {
                 <form className="login_form" onSubmit={handleSubmit}>
                     <div className="mb-3">
                         <label className="form-label">
-                            Username
+                            {t("username")}
                         </label>
                         <input type="text" className="form-control" placeholder={t("enterUName")} value={username} required disabled={loading}
                             onChange={(event) => setUsername(event.target.value)}/>
                     </div>
                     <div className="mb-3">
                         <label className="form-label">
-                            Password
+                            {t("password")}
                         </label>
                         <input type="password" className="form-control" placeholder={t("enterPass")} value={password} required disabled={loading}
                             onChange={(event) => setPassword(event.target.value)}/>
@@ -124,7 +124,7 @@ function Login() {
                     )}
                     <button type="submit" className="btn btn-primary login_submit w-100" disabled={loading}>
                         {
-                            loading ? t("processing") : mode === "login" ? "Login" : "Register"
+                            loading ? t("processing") : mode === "login" ? t("login") : t("register")
                         }
                     </button>
                 </form>

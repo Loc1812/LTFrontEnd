@@ -2,7 +2,7 @@ import { websocketService } from "./websocket";
 import type { ServerMessage } from "../types/websocket";
 import type { ChatMessage } from "../store/slice/ChatSlice";
 import type { Conversation } from "../component/chat/ConversationItem";
-
+import i18n from "../i18n";
 interface ApiChatMessage {
     id?: number;
     name: string;
@@ -24,7 +24,7 @@ function mapMessage(data: unknown): ChatMessage {
         typeof data.mes !== "string" ||
         typeof data.type !== "number"
     ) {
-        throw new Error("Dữ liệu tin nhắn không hợp lệ.");
+        throw new Error(i18n.t("errInvalidChatMessage"));
     }
 
     return {
@@ -105,7 +105,7 @@ class ChatService {
         });
 
         if (!Array.isArray(data)) {
-            throw new Error("Dữ liệu lịch sử chat không hợp lệ.");
+            throw new Error(i18n.t("errInvalidChatHistory"));
         }
 
         const messages = data.map(mapMessage);
@@ -118,7 +118,7 @@ class ChatService {
 
     sendPeopleMessage(to: string, mes: string): void {
         if (!to.trim() || !mes.trim()) {
-            throw new Error("Người nhận và nội dung không được để trống.");
+            throw new Error(i18n.t("errRecipientAndMessageRequired"));
         }
 
         websocketService.send("SEND_CHAT", {
@@ -150,7 +150,7 @@ class ChatService {
     async createRoom(name: string): Promise<string> {
         const roomName = name.trim();
         if (!roomName) {
-            throw new Error("Tên phòng không được để trống.");
+            throw new Error(i18n.t("errRoomNameRequired"));
         }
         const data = await this.request("CREATE_ROOM", {
             name: roomName
@@ -164,7 +164,8 @@ class ChatService {
     async joinRoom(name: string): Promise<string> {
         const roomName = name.trim();
         if (!roomName) {
-            throw new Error("Tên phòng không được để trống.");
+            throw new Error(i18n.t("errRoomNameRequired"));
+
         }
         const data = await this.request("JOIN_ROOM", {
             name: roomName
@@ -175,7 +176,6 @@ class ChatService {
             : roomName;
     }
 
-    // GET_USER_LIST: danh sách phòng (type 1) và chat 1-1 (type 0) gần nhất của người dùng
     async getUserList(): Promise<Conversation[]> {
         const data = await this.request("GET_USER_LIST", {});
 
@@ -183,7 +183,7 @@ class ChatService {
             return [];
         }
         if (!Array.isArray(data)) {
-            throw new Error("Dữ liệu danh sách trò chuyện không hợp lệ.");
+            throw new Error(i18n.t("errInvalidConversationList"));
         }
 
         const list: Conversation[] = [];
@@ -198,7 +198,6 @@ class ChatService {
                 id: `${type}-${item.name}`,
                 name: item.name,
                 type,
-                // "2026-11-02 10:00:00" -> "2026-11-02T10:00:00" để mọi trình duyệt đều đọc được
                 lastMessageAt: typeof item.actionTime === "string"
                     ? item.actionTime.replace(" ", "T")
                     : ""
@@ -213,7 +212,7 @@ class ChatService {
         });
 
         if (!isObject(data) || typeof data.status !== "boolean") {
-            throw new Error("Invalid online status response.");
+            throw new Error(i18n.t("errInvalidOnlineStatus"));
         }
 
         return data.status;
@@ -225,7 +224,7 @@ class ChatService {
         });
 
         if (!isObject(data) || typeof data.status !== "boolean") {
-            throw new Error("Invalid user existence response.");
+            throw new Error(i18n.t("errInvalidUserExistence"));
         }
 
         return data.status;
