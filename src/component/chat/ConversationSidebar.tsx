@@ -1,5 +1,5 @@
 import {useState, useEffect, useRef, useCallback, type ChangeEvent, type KeyboardEvent} from "react";
-import {useDispatch, useSelector} from "react-redux";
+import {useDispatch, useSelector, useStore} from "react-redux";
 import ConversationItem, {type ConversationType} from "./ConversationItem";
 import CreateRoomModal from "./CreateRoom";
 import SearchUserModal, {type SearchUserResult} from "./SearchUser";
@@ -8,10 +8,15 @@ import {websocketService} from "../../services/websocket";
 import SettingDialog from "./SettingDialog";
 import { useTranslation } from "react-i18next";
 import {
+    appendChatMessage,
+    beginChatHistoryLoad,
+    cancelChatHistoryLoad,
+    chatKey,
+    clearAllMessages,
     mergeConversations,
+    setChatHistory,
     setCurrentChat,
     setLoading,
-    setMessages,
     upsertConversation
 } from "../../store/slice/ChatSlice";
 import type {RootState} from "../../store/Store";
@@ -43,6 +48,7 @@ function toListErrorText(error: unknown): string {
 
 function ConversationSidebar({username, loading, error, onLogout}: Props) {
     const dispatch = useDispatch();
+    const store = useStore<RootState>();
     const [keyword, setKeyword] = useState("");
     const [searching, setSearching] = useState(false);
     const [searchError, setSearchError] = useState("");
@@ -62,6 +68,10 @@ function ConversationSidebar({username, loading, error, onLogout}: Props) {
     const [listError, setListError] = useState("");
     const loadSeq = useRef(0);
     const selectSeq = useRef(0);
+    const historyRequests = useRef(new Map<string, Promise<void>>());
+    const historyEpoch = useRef(0);
+    const historyQueue = useRef<Promise<unknown>>(Promise.resolve());
+    const openPeopleChatRef = useRef<(target: string) => Promise<void>>(async () => {});
     const [showCreateRoom, setShowCreateRoom] = useState(false);
     const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
     const [showFrame, setShowFrame] = useState(false);
@@ -116,6 +126,7 @@ function ConversationSidebar({username, loading, error, onLogout}: Props) {
             }));
 
             if (message.receiver === username && message.sender !== username) {
+                dispatch(appendChatMessage({key: chatKey("people", message.sender), message}));
                 fromPerson();
             } else if (message.type === 1) {
                 dispatch(upsertConversation({
@@ -129,9 +140,36 @@ function ConversationSidebar({username, loading, error, onLogout}: Props) {
             }
         });
     }, [username, dispatch]);
+    const loadPeopleHistory = (target: string): Promise<void> => {
+        const key = chatKey("people", target);
+        const running = historyRequests.current.get(key);
+        if (running) return running;
+
+        const epoch = historyEpoch.current;
+        dispatch(beginChatHistoryLoad(key));
+        const request: Promise<void> = historyQueue.current
+            .then(() => chatService.getPeopleChatMessages(target, 1))
+            .then((history) => {
+                if (!history.every((item) => item.sender === target || item.receiver === target)) {
+                    throw new Error("Phản hồi lịch sử không khớp cuộc trò chuyện.");
+                }
+                if (epoch === historyEpoch.current) dispatch(setChatHistory({key, messages: history}));
+            })
+            .catch((err) => {
+                if (epoch === historyEpoch.current) dispatch(cancelChatHistoryLoad(key));
+                throw err;
+            })
+            .finally(() => {
+                if (historyRequests.current.get(key) === request) historyRequests.current.delete(key);
+            });
+        historyRequests.current.set(key, request);
+        historyQueue.current = request.catch(() => undefined);
+        return request;
+    };
 
     const openPeopleChat = async (target: string) => {
-        if (!websocketService.isConnected()) {
+        const stored = store.getState().chat.messagesByChat[chatKey("people", target)] !== undefined;
+        if (!stored && !websocketService.isConnected()) {
             setSearchError(t("errConnWebSK"));
             return;
         }
@@ -139,14 +177,14 @@ function ConversationSidebar({username, loading, error, onLogout}: Props) {
 
         setSearchError("");
         dispatch(setCurrentChat(target));
-        dispatch(setMessages([]));
-        dispatch(setLoading(true));
+        if (stored) {
+            dispatch(setLoading(false));
+            return;
+        }
 
+        dispatch(setLoading(true));
         try {
-            const history = await chatService.getPeopleChatMessages(target, 1);
-            if (seq === selectSeq.current) {
-                dispatch(setMessages(history));
-            }
+            await loadPeopleHistory(target);
         } catch (err) {
             if (seq === selectSeq.current) {
                 setSearchError(toSearchErrorText(err));
@@ -157,6 +195,19 @@ function ConversationSidebar({username, loading, error, onLogout}: Props) {
             }
         }
     };
+
+    useEffect(() => {
+        openPeopleChatRef.current = openPeopleChat;
+    });
+    useEffect(() => {
+        if (!username || !reLoginCode) return;
+        historyEpoch.current++;
+        historyRequests.current.clear();
+        historyQueue.current = Promise.resolve();
+        dispatch(clearAllMessages());
+        const current = store.getState().chat.currentChat;
+        if (current) openPeopleChatRef.current(current);
+    }, [username, reLoginCode, dispatch, store]);
 
     const handleSelectConversation = async (conversation: typeof conversations[number]) => {
         if (conversation.type !== "people") return;
@@ -241,7 +292,6 @@ function ConversationSidebar({username, loading, error, onLogout}: Props) {
             setSearching(false);
         }
     };
-
     const handleStartChat = async (target: string) => {
         setSearchResult(null);
         revealType("people");
