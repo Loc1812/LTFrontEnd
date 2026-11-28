@@ -8,8 +8,9 @@ import type { RootState } from "../store/Store";
 import ConversationSidebar from "../component/chat/ConversationSidebar";
 import ChatPanel from "../component/chat/ChatPanel";
 import "./chat.css";
-
+import { useTranslation } from "react-i18next";
 function Chat() {
+    const { t } = useTranslation();
     const dispatch = useDispatch();
     const navigate = useNavigate();
     const username = useSelector(
@@ -26,7 +27,7 @@ function Chat() {
                 await authService.logout();
             }
         } catch (error) {
-            setError(error instanceof Error ? error.message : "Không thể gửi yêu cầu Logout.");
+            setError(error instanceof Error ? error.message : t("errRequestLogout"));
         } finally {
             authService.clearSession();
             websocketService.close();

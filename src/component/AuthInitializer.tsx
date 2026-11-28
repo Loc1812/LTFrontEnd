@@ -3,8 +3,10 @@ import { useDispatch } from "react-redux";
 import {authService, AuthServiceError} from "../services/authService";
 import { websocketService } from "../services/websocket";
 import {loginSuccess, logout} from "../store/slice/AuthSlice";
+import { useTranslation } from "react-i18next";
 interface AuthInitializerProps {children: ReactNode;}
 function AuthInitializer({children}: AuthInitializerProps) {
+    const { t } = useTranslation();
     const dispatch = useDispatch();
     const [initialized, setInitialized] = useState(false);
     useEffect(() => {
@@ -48,7 +50,7 @@ function AuthInitializer({children}: AuthInitializerProps) {
         };
     }, [dispatch]);
     if (!initialized) {
-        return (<div className="container text-center mt-5">Đang khôi phục phiên đăng nhập...</div>);
+        return (<div className="container text-center mt-5">{t("restoreLoginSession")} ...</div>);
     }
     return <>{children}</>;
 }

@@ -7,6 +7,7 @@ import type {
     LoginResponseData,
     ConnectionStatus
 } from "../types/websocket";
+import i18n from "../i18n";
 export type AuthErrorCode = | "SESSION_EXPIRED" | "SERVER_ERROR" | "REQUEST_FAILED";
 export class AuthServiceError extends Error {
     public code: AuthErrorCode;
@@ -27,14 +28,14 @@ class AuthService {
     private activeRequests = new Set<string>();
     private async request(event: string, data?: LoginPayload | RegisterPayload | ReLoginPayload): Promise<ServerMessage> {
         if (this.activeRequests.has(event)) {
-            throw new AuthServiceError(`${event} request is already in progress.`, "REQUEST_FAILED");
+            throw new AuthServiceError(i18n.t("errRequestInProgress"), "REQUEST_FAILED");
         }
         this.activeRequests.add(event);
         try {
             try {
                 await websocketService.connect();
             } catch {
-                throw new AuthServiceError(`${event}: Không thể kết nối WebSocket.`, "REQUEST_FAILED");
+                throw new AuthServiceError(i18n.t("errAuthWsConnect"), "REQUEST_FAILED");
             }
             return await new Promise<ServerMessage>(
                 (resolve, reject) => {
@@ -56,17 +57,17 @@ class AuthService {
                         } else if (message) {
                             resolve(message);
                         } else {
-                            reject(new AuthServiceError("Response không hợp lệ.", "REQUEST_FAILED"));
+                            reject(new AuthServiceError(i18n.t("errInvalidResponse"), "REQUEST_FAILED"));
                         }
                     };
                     timeout = window.setTimeout(() => {
-                        finish(new AuthServiceError(`${event}: Server không phản hồi quá 10 giây.`, "REQUEST_FAILED"));
+                        finish(new AuthServiceError(i18n.t("errServerNoResponse"), "REQUEST_FAILED"));
                     }, this.REQUEST_TIMEOUT);
                     unsubscribeMessage = websocketService.subscribe(event, (message) => {
                         if (message.status === "success") {
                             finish(undefined, message);
                         } else {
-                            const messageText = message.mes || `${event} thất bại.`;
+                            const messageText = message.mes || i18n.t("errRequestFailed");
                             const isExpired = event === "RE_LOGIN" && /session expired|re-login error|invalid.*code/i.test(messageText);
                             finish(new AuthServiceError(messageText, isExpired ? "SESSION_EXPIRED" : "SERVER_ERROR"));
                         }
@@ -75,17 +76,17 @@ class AuthService {
                     unsubscribeStatus = websocketService.subscribeStatus(
                         (status: ConnectionStatus) => {
                             if (status === "ERROR" || status === "DISCONNECTED") {
-                                finish(new AuthServiceError(`${event}: WebSocket đã mất kết nối.`, "REQUEST_FAILED"));
+                                finish(new AuthServiceError(i18n.t("errWSLostConn"), "REQUEST_FAILED"));
                             }
                         });
                     if (!websocketService.isConnected()) {
-                        finish(new AuthServiceError(`${event}: WebSocket không còn kết nối.`, "REQUEST_FAILED"));
+                        finish(new AuthServiceError(i18n.t("errWsNotConnected"), "REQUEST_FAILED"));
                         return;
                     }
                     try {
                         websocketService.send(event, data);
                     } catch {
-                        finish(new AuthServiceError(`${event}: Không thể gửi request.`, "REQUEST_FAILED"));
+                        finish(new AuthServiceError(i18n.t("errSendRequest"), "REQUEST_FAILED"));
                     }
                 }
             );
@@ -99,7 +100,7 @@ class AuthService {
         const responseData = response.data as LoginResponseData | undefined;
         const code = responseData?.RE_LOGIN_CODE;
         if (!code) {
-            throw new AuthServiceError("Server không trả về RE_LOGIN_CODE.", "SERVER_ERROR");
+            throw new AuthServiceError(i18n.t("errServerNoReloginCode"), "SERVER_ERROR");
         }
         return code;
     }
@@ -116,7 +117,7 @@ class AuthService {
             const responseData = response.data as LoginResponseData | undefined;
             const newCode = responseData?.RE_LOGIN_CODE;
                 if (!newCode) {
-                    throw new AuthServiceError("Server không trả về RE_LOGIN_CODE mới.", "SERVER_ERROR");
+                    throw new AuthServiceError(i18n.t("errServerNoNewReloginCode"), "SERVER_ERROR");
                 }
                 return newCode;
             })
