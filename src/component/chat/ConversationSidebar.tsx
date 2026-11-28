@@ -52,7 +52,6 @@ function ConversationSidebar({username, loading, error, onLogout}: Props) {
     const visibleConversations = filter === "all"
         ? conversations
         : conversations.filter((conversation) => conversation.type === filter);
-    // Vừa tạo / tham gia phòng hoặc mở chat với người mà đang lọc loại kia thì chuyển về "Tất cả" để thấy ngay
     const revealType = (type: ConversationType) => {
         setFilter((current) => (current === "all" || current === type ? current : "all"));
     };

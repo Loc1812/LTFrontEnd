@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import type { RootState } from "../../store/Store";
-import {addMessage, setCurrentChat, setLoading, setMessages} from "../../store/slice/ChatSlice";
+import {addMessage, setCurrentChat, setLoading, setMessages, upsertConversation} from "../../store/slice/ChatSlice";
 import { chatService } from "../../services/chatService";
 import { websocketService } from "../../services/websocket";
 import { useTranslation } from "react-i18next";
@@ -161,6 +161,13 @@ function ChatPanel() {
                 type: 0
             }));
 
+            dispatch(upsertConversation({
+                id: `people-${currentChat}`,
+                name: currentChat,
+                type: "people",
+                lastMessageAt: new Date().toISOString()
+            }));
+
             setMessageInput("");
 
         } catch (err) {
@@ -212,7 +219,7 @@ function ChatPanel() {
                 ) : (
                     messages.map((message, index) => (
                         <div key={message.id ?? index}
-                            className={`message-row ${message.sender === username ? "message-mine" : "message-theirs"}`}>
+                             className={`message-row ${message.sender === username ? "message-mine" : "message-theirs"}`}>
                             <div className="message-bubble">
                                 <div className="message-content">{message.content}</div>
                                 {message.time && (
@@ -236,10 +243,10 @@ function ChatPanel() {
             )}
             {showVoiceDialog && (
                 <div className="voice-dialog-overlay" onMouseDown={(event) => {
-                        if (event.target === event.currentTarget) {
-                            setShowVoiceDialog(false);
-                        }
-                    }}>
+                    if (event.target === event.currentTarget) {
+                        setShowVoiceDialog(false);
+                    }
+                }}>
                     <div className="voice-dialog" role="dialog" aria-modal="true" aria-labelledby="voice-dialog-title">
                         <div className="voice-dialog-header">
                             <h4 id="voice-dialog-title">Ghi âm tin nhắn</h4>
