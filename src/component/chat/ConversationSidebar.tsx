@@ -1,6 +1,6 @@
 import {useState, useEffect, useRef, useCallback, type ChangeEvent, type KeyboardEvent} from "react";
 import {useDispatch, useSelector} from "react-redux";
-import ConversationItem from "./ConversationItem";
+import ConversationItem, {type ConversationType} from "./ConversationItem";
 import CreateRoomModal from "./CreateRoom";
 import SearchUserModal, {type SearchUserResult} from "./SearchUser";
 import {chatService} from "../../services/chatService";
@@ -15,6 +15,8 @@ import {
     upsertConversation
 } from "../../store/slice/ChatSlice";
 import type {RootState} from "../../store/Store";
+
+type ConversationFilter = "all" | ConversationType;
 
 interface Props {
     username: string | null;
@@ -46,6 +48,14 @@ function ConversationSidebar({username, loading, error, onLogout}: Props) {
     const [searchResult, setSearchResult] = useState<SearchUserResult | null>(null);
     const [groupMode, setGroupMode] = useState(false);
     const conversations = useSelector((state: RootState) => state.chat.conversations);
+    const [filter, setFilter] = useState<ConversationFilter>("all");
+    const visibleConversations = filter === "all"
+        ? conversations
+        : conversations.filter((conversation) => conversation.type === filter);
+    // Vừa tạo / tham gia phòng hoặc mở chat với người mà đang lọc loại kia thì chuyển về "Tất cả" để thấy ngay
+    const revealType = (type: ConversationType) => {
+        setFilter((current) => (current === "all" || current === type ? current : "all"));
+    };
     const reLoginCode = useSelector((state: RootState) => state.auth.reLoginCode);
     const [listLoading, setListLoading] = useState(true);
     const [listError, setListError] = useState("");
@@ -68,13 +78,10 @@ function ConversationSidebar({username, loading, error, onLogout}: Props) {
             document.removeEventListener("mousedown", handleClickOutside);
         };
     }, []);
-    // Tải danh sách trò chuyện (GET_USER_LIST) và nạp vào store
     const loadConversations = useCallback(async () => {
         const seq = ++loadSeq.current;
         setListLoading(true);
         setListError("");
-
-        // Chưa kết nối: chờ SocketManager kết nối + RE_LOGIN, khi xong reLoginCode đổi và hàm này sẽ chạy lại
         if (!websocketService.isConnected()) return;
 
         try {
@@ -88,8 +95,6 @@ function ConversationSidebar({username, loading, error, onLogout}: Props) {
             if (seq === loadSeq.current) setListLoading(false);
         }
     }, [dispatch]);
-
-    // Chạy khi vào trang và mỗi lần đăng nhập / đăng nhập lại thành công (reLoginCode đổi)
     useEffect(() => {
         if (!username || !reLoginCode) return;
         loadConversations();
@@ -97,12 +102,10 @@ function ConversationSidebar({username, loading, error, onLogout}: Props) {
             loadSeq.current++;
         };
     }, [username, reLoginCode, loadConversations]);
-
-    // Tin nhắn đến theo thời gian thực (SEND_CHAT): người/phòng chưa có trong danh sách thì tự thêm, đã có thì đưa lên đầu
     useEffect(() => {
         if (!username) return;
         return chatService.subscribeMessages((message) => {
-            console.log("[chat-debug] sidebar nhận SEND_CHAT:", message, "| username hiện tại:", username); // log tạm, xóa sau khi xác nhận chạy đúng
+            console.log("[chat-debug] sidebar nhận SEND_CHAT:", message, "| username hiện tại:", username);
             const now = new Date().toISOString();
             const fromPerson = () => dispatch(upsertConversation({
                 id: `people-${message.sender}`,
@@ -112,10 +115,8 @@ function ConversationSidebar({username, loading, error, onLogout}: Props) {
             }));
 
             if (message.receiver === username && message.sender !== username) {
-                // tin 1-1 gửi đến mình: sender là người gửi
                 fromPerson();
             } else if (message.type === 1) {
-                // tin trong phòng: receiver là tên phòng
                 dispatch(upsertConversation({
                     id: `room-${message.receiver}`,
                     name: message.receiver,
@@ -123,14 +124,10 @@ function ConversationSidebar({username, loading, error, onLogout}: Props) {
                     lastMessageAt: now
                 }));
             } else if (message.sender !== username) {
-                // dự phòng: tin 1-1 do người khác gửi nhưng trường "to" không khớp username
                 fromPerson();
             }
         });
     }, [username, dispatch]);
-
-    // Mở cuộc trò chuyện 1-1 và tải lịch sử. Dùng chung cho "bấm vào dòng trong danh sách" và "Nhắn tin" trong popup.
-    // selectSeq: nếu người dùng chuyển sang người khác khi đang tải thì bỏ kết quả của lần tải cũ.
     const openPeopleChat = async (target: string) => {
         if (!websocketService.isConnected()) {
             setSearchError("WebSocket chưa kết nối.");
@@ -160,7 +157,6 @@ function ConversationSidebar({username, loading, error, onLogout}: Props) {
         }
     };
 
-    // Bấm vào một dòng trong danh sách (hiện chỉ mở được cuộc trò chuyện 1-1)
     const handleSelectConversation = async (conversation: typeof conversations[number]) => {
         if (conversation.type !== "people") return;
         await openPeopleChat(conversation.name);
@@ -173,6 +169,7 @@ function ConversationSidebar({username, loading, error, onLogout}: Props) {
             type: "room",
             lastMessageAt: new Date().toISOString()
         }));
+        revealType("room");
         setShowCreateRoom(false);
     };
 
@@ -188,6 +185,7 @@ function ConversationSidebar({username, loading, error, onLogout}: Props) {
                 type: "room",
                 lastMessageAt: new Date().toISOString()
             }));
+            revealType("room");
             setKeyword("");
             setSearchNotice(`Đã tham gia phòng "${joinedName}".`);
         } catch (err) {
@@ -242,10 +240,9 @@ function ConversationSidebar({username, loading, error, onLogout}: Props) {
             setSearching(false);
         }
     };
-
-    // Bấm "Nhắn tin" trong popup: thêm vào danh sách rồi mở cuộc trò chuyện 1-1
     const handleStartChat = async (target: string) => {
         setSearchResult(null);
+        revealType("people");
         dispatch(upsertConversation({
             id: `people-${target}`,
             name: target,
@@ -298,6 +295,14 @@ function ConversationSidebar({username, loading, error, onLogout}: Props) {
                     </button>
                 </div>
 
+                <div className="sb-filter" role="group" aria-label={t("filterConversations")}>
+                    {([["all", t("all")], ["people", t("people")], ["room", t("room")]] as [ConversationFilter, string][]).map(([key, label]) => (
+                        <button key={key} type="button" className={`sb-filter__btn${filter === key ? " is-active" : ""}`}
+                                aria-pressed={filter === key} onClick={() => setFilter(key)}>
+                            {label}
+                        </button>))}
+                </div>
+
                 <div className="sb-list rounded-3">
                     {listError && (
                         <div className="alert alert-warning py-1 px-2 mb-2 small d-flex align-items-center justify-content-between gap-2"
@@ -314,9 +319,11 @@ function ConversationSidebar({username, loading, error, onLogout}: Props) {
                         </div>)}
                     {!listLoading && !listError && conversations.length === 0 && (
                         <div className="text-center text-secondary small py-3">Chưa có cuộc trò chuyện nào.</div>)}
-                    {conversations.map((conversation) => (
-                        // ConversationItem đã là <button> nên tự xử lý Tab / Enter / Space; div ngoài chỉ nhận click nổi bọt lên.
-                        // Không thêm role="button" / tabIndex / onKeyDown vào div này (sẽ chạy 2 lần khi bấm Enter).
+                    {!listLoading && !listError && conversations.length > 0 && visibleConversations.length === 0 && (
+                        <div className="text-center text-secondary small py-3">
+                            {filter === "people" ? t("noPeople") : t("noRoom")}
+                        </div>)}
+                    {visibleConversations.map((conversation) => (
                         <div key={conversation.id} className="conversation-clickable"
                              onClick={() => handleSelectConversation(conversation)}>
                             <ConversationItem conversation={conversation}/>

@@ -51,7 +51,12 @@ const resources = {
             loadingMes: "Đang tải tin nhắn",
             noMes: "Chưa có tin nhắn",
             online: "Đang online",
-            offline: "Đang offline"
+            offline: "Đang offline",
+            all: "Tất cả",
+            people: "Người",
+            filterConversations: "Lọc cuộc trò chuyện",
+            noPeople: "Chưa có người nào.",
+            noRoom: "Chưa có phòng nào."
         }
     },
     en: {
@@ -104,6 +109,11 @@ const resources = {
             noMes: "No message",
             online: "Online",
             offline: "Offline",
+            all: "All",
+            people: "People",
+            filterConversations: "Filter conversations",
+            noPeople: "No people yet.",
+            noRoom: "No rooms yet."
         }
     }
 };

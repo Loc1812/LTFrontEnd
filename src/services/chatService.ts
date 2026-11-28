@@ -134,7 +134,7 @@ class ChatService {
         return websocketService.subscribe(
             "SEND_CHAT",
             (message: ServerMessage) => {
-                console.log("[chat-debug] frame SEND_CHAT thô:", message); // log tạm, xóa sau khi xác nhận chạy đúng
+                console.log("[chat-debug] frame SEND_CHAT thô:", message);
                 if (message.status !== "success") return;
 
                 try {
@@ -175,7 +175,6 @@ class ChatService {
             : roomName;
     }
 
-    // GET_USER_LIST: danh sách phòng (type 1) và chat 1-1 (type 0) gần nhất của người dùng
     async getUserList(): Promise<Conversation[]> {
         const data = await this.request("GET_USER_LIST", {});
 
@@ -198,7 +197,6 @@ class ChatService {
                 id: `${type}-${item.name}`,
                 name: item.name,
                 type,
-                // "2026-11-02 10:00:00" -> "2026-11-02T10:00:00" để mọi trình duyệt đều đọc được
                 lastMessageAt: typeof item.actionTime === "string"
                     ? item.actionTime.replace(" ", "T")
                     : ""
